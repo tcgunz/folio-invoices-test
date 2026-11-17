@@ -3407,6 +3407,17 @@ body.noiv .ivx{display:none!important}
 .ivclrow b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ivclrow small{color:var(--muted);grid-column:1/-1;margin-top:-2px}
 .ivclrow .ow{color:#b45309;font-weight:600}
+#invEd .sf .btn,#ivPrev .sf .btn{flex:1}
+#ivPrev{position:fixed;inset:0;z-index:60;background:#52525b;display:none;flex-direction:column}
+#ivPrev.on{display:flex}
+#ivPrev .sh{background:#fff;border-bottom:1px solid var(--line)}
+#ivPrev .sf{background:#fff;border-top:1px solid var(--line)}
+#ivPrev .btn.pri{background:#15803d;border-color:#15803d}
+#ipBody{flex:1;overflow:auto;padding:14px;-webkit-overflow-scrolling:touch}
+#ipBody canvas{display:block;width:100%;height:auto;margin:0 auto 14px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.35);border-radius:2px}
+#ivPrev.zoom #ipBody canvas{width:200%;max-width:none}
+#ipBody .msg{color:#fff;text-align:center;padding:40px 20px}
+.rsthumb{display:block;width:100%;max-height:46vh;object-fit:contain;object-position:top;background:#f3f4f6;border:1px solid var(--line);border-radius:10px;margin:0 0 12px}
 .ivcl{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .ivcl span{flex:1;min-width:0}
 .ivcl small{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -3431,7 +3442,12 @@ body.ci #menu [data-m=ivtoggle] .ic{color:#15803d}
 <div id="invEd">
   <div class="sh"><button class="tb" id="ieBack"><span class="ic" data-i="back"></span></button><b id="ieTitle">New invoice</b><span class="sp"></span><button class="btn" id="ieDup" style="height:36px;flex:none">Copy</button><button class="btn red" id="ieDel" style="height:36px;flex:none;margin-left:6px">Delete</button></div>
   <div id="ivForm"></div>
-  <div class="sf"><button class="btn" id="ieSave">Save</button><button class="btn pri" id="iePdf"><span class="ic" data-i="share"></span>PDF &amp; send</button></div>
+  <div class="sf"><button class="btn" id="ieSave">Save</button><button class="btn" id="iePrev"><span class="ic" data-i="image"></span>Preview</button><button class="btn pri" id="iePdf"><span class="ic" data-i="share"></span>PDF &amp; send</button></div>
+</div>
+<div id="ivPrev">
+  <div class="sh"><button class="tb" id="ipBack"><span class="ic" data-i="back"></span></button><b id="ipTitle">Preview</b><span class="sp"></span><button class="tb" id="ipZoom" aria-label="Zoom"><span class="ic" data-i="plus"></span></button></div>
+  <div id="ipBody"></div>
+  <div class="sf"><button class="btn" id="ipEdit"><span class="ic" data-i="pen"></span>Edit</button><button class="btn pri" id="ipSend"><span class="ic" data-i="share"></span>Send</button></div>
 </div>
 <input type="file" id="bzLogoF" accept="image/*" hidden>
 <datalist id="ivClientList"></datalist>
@@ -3673,16 +3689,43 @@ $('#ieDel').onclick=()=>{const v=IV.cur;
   openModal(`<h3>Delete invoice ${esc(v.no)}?</h3><p class="small">This can't be undone.${latest?' It was never sent, so your next invoice will reuse number '+esc(v.no)+'.':''} Any PDF copy already in your Library stays there.</p><div class="btns"><button class="btn" data-x>Cancel</button><button class="btn red" id="ivDelOk">Delete</button></div>`);
   $('#ivDelOk').onclick=()=>{ivRemove([v.id]);IV.dirty=false;closeModal();$('#invEd').classList.remove('on');toast('Invoice deleted');if($('#inv').classList.contains('on'))ivRender()}};
 const ivFileName=v=>{const safe=s=>String(s||'').replace(/[\\/:*?"<>|]+/g,' ').trim();return`Invoice ${safe(v.no)} - ${safe(v.client.name)}${v.void?' (VOID)':''}.pdf`};
-$('#iePdf').onclick=async()=>{
-  ivRead();const v=IV.cur;
-  if(!v.client.name){toast('Add the client name first');$('#clName').focus();return}
-  if(!v.items.some(it=>it.desc||parseFloat(it.rate))){toast('Add at least one item');return}
-  if(!v.void&&!v.sent)v.sent=Date.now();
+function ivCheck(){ivRead();const v=IV.cur;
+  if(!v.client.name){toast('Add the client name first');$('#clName').focus();return false}
+  if(!v.items.some(it=>it.desc||parseFloat(it.rate))){toast('Add at least one item');return false}return true}
+/* send: mark as sent, keep a Library copy, then the share screen with a picture of page 1 */
+async function ivSend(bytes){
+  const v=IV.cur;if(!v.void&&!v.sent)v.sent=Date.now();
   ivCommit();busy('Making the PDF…');
-  try{const bytes=await ivPdf(v);const name=ivFileName(v);
+  try{if(!bytes)bytes=await ivPdf(v);const name=ivFileName(v);
     if(lsGet('foliotest.ivlib')!=='0'){try{await libFolders();await libSave(name,'Invoices',bytes)}catch(e){console.warn(e)}}
-    unbusy();readyShare([{name,bytes,type:'application/pdf'}],name)}
-  catch(e){console.error(e);unbusy();toast('Could not make the PDF')}};
+    const thumb=await ivThumb(bytes);
+    unbusy();readyShare([{name,bytes,type:'application/pdf'}],name);
+    if(thumb){const m=$('#modal');const h3=m.querySelector('h3');const im=document.createElement('img');im.className='rsthumb';im.alt='First page of the invoice';im.src=thumb;h3&&h3.after(im)}}
+  catch(e){console.error(e);unbusy();toast('Could not make the PDF')}}
+$('#iePdf').onclick=()=>{if(ivCheck())ivSend()};
+/* preview: the real PDF, drawn page by page. Previewing doesn't count as sending. */
+async function ivRenderPages(bytes,scale,max){
+  if(!window.pdfjsLib)throw new Error('nopdfjs');
+  const pdf=await pdfjsLib.getDocument({data:bytes.slice(),isEvalSupported:false}).promise;const out=[];
+  for(let i=1;i<=Math.min(pdf.numPages,max||99);i++){const p=await pdf.getPage(i);const vp=p.getViewport({scale});const c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);
+    const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);await p.render({canvasContext:ctx,viewport:vp}).promise;out.push(c)}
+  try{pdf.destroy()}catch(e){}return out}
+async function ivThumb(bytes){try{const[c]=await ivRenderPages(bytes,1.1,1);return c?c.toDataURL('image/jpeg',.85):''}catch(e){return''}}
+IV.prevBytes=null;
+$('#iePrev').onclick=async()=>{
+  ivRead();const v=IV.cur;
+  if(!v.client.name&&!v.items.some(it=>it.desc||parseFloat(it.rate))){toast('Fill in the invoice first, then preview it');return}
+  if(IV.dirty)ivCommit();
+  const B=$('#ipBody');B.innerHTML='<p class="msg">Making the preview…</p>';$('#ipTitle').textContent='Preview · '+v.no;
+  $('#ivPrev').classList.remove('zoom');$('#ivPrev').classList.add('on');paintIcons($('#ivPrev'));
+  try{const bytes=await ivPdf(v);IV.prevBytes=bytes;const dpr=Math.min(3,window.devicePixelRatio||1);
+    const pages=await ivRenderPages(bytes,Math.max(1.5,(B.clientWidth*dpr*2)/612));B.innerHTML='';pages.forEach(c=>B.appendChild(c))}
+  catch(e){console.error(e);B.innerHTML=`<p class="msg">${e&&e.message==='nopdfjs'?"The preview needs the PDF engine, which didn't load. Check your connection and reopen Folio.":"Couldn't show the preview."}</p>`}};
+const ivPrevClose=()=>{$('#ivPrev').classList.remove('on');$('#ipBody').innerHTML='';IV.prevBytes=null};
+$('#ipBack').onclick=ivPrevClose;$('#ipEdit').onclick=ivPrevClose;
+$('#ipZoom').onclick=()=>{const z=$('#ivPrev').classList.toggle('zoom');$('#ipZoom').innerHTML=icon(z?'minus':'plus')};
+$('#ipBody').addEventListener('dblclick',()=>$('#ipZoom').click());
+$('#ipSend').onclick=()=>{if(!ivCheck()){ivPrevClose();return}const b=IV.prevBytes;ivPrevClose();ivSend(b)};
 
 /* ---- the PDF itself ---- */
 const ivHexRgb=h=>{const m=/^#?([0-9a-f]{6})$/i.exec(String(h||''));const n=m?parseInt(m[1],16):0x4338ca;return[(n>>16&255)/255,(n>>8&255)/255,(n&255)/255]};
@@ -3739,6 +3782,7 @@ async function ivPdf(v){
 navWatch($('#inv'),()=>$('#inv').classList.remove('on'));
 navWatch($('#ivSelMark'),()=>ivSelEnd());
 navWatch($('#invEd'),()=>ivClose());
+navWatch($('#ivPrev'),()=>ivPrevClose());
 applyIvSetting();
 </script>
 
