@@ -34,6 +34,7 @@ svg{width:20px;height:20px;flex:none}
 @media (max-width:560px){.tb .lb{display:none}.logo span{display:none}}
 #menu{position:absolute;top:48px;left:8px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.14);padding:6px;min-width:230px;display:none;z-index:40}
 #menu.on{display:block}
+#menu{max-height:calc(100vh - 64px);max-height:calc(100dvh - 64px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 #menu button{display:flex;width:100%;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;text-align:left}
 #menu button:hover:not(:disabled){background:#f1f3f5}
 #menu hr{border:0;border-top:1px solid var(--line);margin:4px 0}
@@ -398,7 +399,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 81<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 84<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
