@@ -3360,16 +3360,18 @@ body.noiv .ivx{display:none!important}
 .ivcard .m small{color:var(--muted)}
 .ivcard .r{text-align:right;flex:none}
 .ivcard .r b{display:block}
-.ivcard .ck{display:none;width:22px;height:22px;border-radius:50%;border:2px solid #c7cbd1;flex:none}
-#inv.selecting .ivcard .ck{display:block}
-.ivcard.sel{border-color:#15803d;box-shadow:0 0 0 2px #15803d inset;background:#f0fdf4}
-.ivcard.sel .ck{background:#15803d;border-color:#15803d;box-shadow:inset 0 0 0 3px #fff}
+.ivcard .ck,.ivtbl .ck{display:none;width:24px;height:24px;border-radius:50%;border:2px solid #9ca3af;flex:none;align-items:center;justify-content:center;color:#fff;font-size:15px;font-weight:800;line-height:1}
+#inv.selecting .ivcard .ck,#inv.selecting .ivtbl .ck{display:flex}
+.ivcard.sel{border-color:var(--acc);box-shadow:none;outline:2px solid var(--acc);background:#f5f7ff}
+.ivcard.sel .ck,.ivtbl tr.sel .ck{background:var(--acc);border-color:var(--acc)}
 .ivcard.void .m b,.ivcard.void .r b{text-decoration:line-through;color:var(--muted)}
 .ivst{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 7px;margin-top:3px}
 .ivst.paid{background:#dcfce7;color:#166534}.ivst.due{background:#fef3c7;color:#92400e}.ivst.late{background:#fee2e2;color:#991b1b}.ivst.void{background:#e5e7eb;color:#4b5563}
-#ivSelBar{display:none;gap:8px;align-items:center;padding:10px 12px;background:#1f2937;color:#fff;flex-wrap:wrap}
+#ivSelBar{display:none;gap:6px;align-items:center;padding:10px 10px;background:#111827;color:#fff;flex-wrap:nowrap}
+#ivSelN{flex:1;min-width:0;font-size:14px;line-height:1.2}
 #inv.selecting #ivSelBar{display:flex}
-#ivSelBar .btn{height:38px;flex:none;background:#fff;color:#111827;border-color:#fff;padding:0 12px}
+#ivSelBar .btn{height:40px;flex:none;background:#fff;color:#111827;border-color:#fff;padding:0 11px;font-size:14px;white-space:nowrap}
+#ivSelBar .btn:disabled{opacity:.5}
 #ivSelBar .btn.red{background:#dc2626;border-color:#dc2626;color:#fff}
 #ivForm{flex:1;overflow:auto;padding:12px 14px 30px}
 #ivForm .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px 4px;margin-bottom:12px}
@@ -3408,7 +3410,7 @@ body.noiv .ivx{display:none!important}
 .ivtbl td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top;-webkit-user-select:none;user-select:none}
 .ivtbl tr:last-child td{border-bottom:0}
 .ivtbl .n{text-align:right;white-space:nowrap}
-.ivtbl tr.sel td{background:#f0fdf4}
+.ivtbl tr.sel td{background:#eef2ff}
 .ivtbl tr.void td{color:var(--muted);text-decoration:line-through}
 .ivtbl .cl{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ivbox{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:14px}
@@ -3454,7 +3456,8 @@ body.ci #menu [data-m=ivtoggle] .ic{color:#15803d}
   <div id="ivList" style="padding:12px"></div>
   </div>
   <p class="small" id="ivHint" style="text-align:center;margin:0;padding:0 12px 8px">Tap an invoice to open it. Press and hold to select several.</p>
-  <div id="ivSelBar"><button class="tb" id="ivSelX" style="color:#fff"><span class="ic" data-i="x"></span></button><b id="ivSelN" style="flex:1">0 selected</b><button class="btn" id="ivSelAll">All</button><button class="btn" id="ivSelPaid">Paid</button><button class="btn" id="ivSelShare">Share</button><button class="btn red" id="ivSelDel">Delete</button></div>
+  <p class="small" id="ivSelHint" style="text-align:center;margin:0;padding:0 12px 8px;display:none">Tap invoices to select them. Press back to cancel.</p>
+  <div id="ivSelBar"><b id="ivSelN">0 selected</b><button class="btn" id="ivSelAll">Select all</button><button class="btn" id="ivSelPaid">Paid</button><button class="btn" id="ivSelShare">Share</button><button class="btn red" id="ivSelDel">Delete</button><button class="tb" id="ivSelX" style="display:none"></button></div>
   <div id="ivSelMark" style="display:none"></div>
 </div>
 
@@ -3527,15 +3530,15 @@ function ivRender(){
   MW.querySelectorAll('button').forEach(b=>b.onclick=()=>{IV.month=b.dataset.m;ivRender()});
   $('#ivSort').value=IV.sort;$('#ivView').innerHTML=icon(IV.view==='table'?'grid':'list');$('#ivView').title=IV.view==='table'?'Show as cards':'Show as a table';
   const rows=ivVisible();
-  const L=$('#ivList');$('#ivHint').style.display=IV.list.length&&!IV.sel?'':'none';
+  const L=$('#ivList');$('#ivHint').style.display=IV.list.length&&!IV.sel?'':'none';$('#ivSelHint').style.display=IV.sel?'':'none';
   if(!IV.list.length){L.innerHTML=`<div style="text-align:center;padding:40px 20px;color:var(--muted)"><p style="font-size:15px;color:var(--ink);font-weight:600">No invoices yet</p><p class="small">Tap <b>New</b> to create your first one. You can save it as a PDF and send it from your own email.</p></div>`;return}
   if(!rows.length){L.innerHTML=`<p class="small" style="text-align:center;padding:30px">Nothing matches.</p>`;return}
   const isSel=v=>IV.sel&&IV.sel.has(v.id);
   if(IV.view==='table'){
-    L.innerHTML=`<table class="ivtbl"><thead><tr><th>No.</th><th>Date</th><th>Client</th><th class="n">Total</th><th>Status</th></tr></thead><tbody>${rows.map(v=>{const st=ivStatus(v);return`<tr data-id="${esc(v.id)}" class="${st==='void'?'void':''} ${isSel(v)?'sel':''}"><td>${esc(String(v.no).replace(/^INV-0*/,'#'))}</td><td style="white-space:nowrap">${esc(ivFmtDate(v.date).replace(/,? \d{4}$/,''))}</td><td class="cl">${esc(v.client&&v.client.name||'—')}</td><td class="n">${esc(fmtMoney(ivTotals(v).total))}</td><td><span class="ivst ${st}" style="margin:0">${ivStLabel[st]}</span></td></tr>`}).join('')}</tbody></table>`;
+    L.innerHTML=`<table class="ivtbl"><thead><tr>${IV.sel?'<th></th>':''}<th>No.</th><th>Date</th><th>Client</th><th class="n">Total</th><th>Status</th></tr></thead><tbody>${rows.map(v=>{const st=ivStatus(v);return`<tr data-id="${esc(v.id)}" class="${st==='void'?'void':''} ${isSel(v)?'sel':''}">${IV.sel?`<td style="width:28px;padding-right:0"><span class="ck">${isSel(v)?'✓':''}</span></td>`:''}<td>${esc(String(v.no).replace(/^INV-0*/,'#'))}</td><td style="white-space:nowrap">${esc(ivFmtDate(v.date).replace(/,? \d{4}$/,''))}</td><td class="cl">${esc(v.client&&v.client.name||'—')}</td><td class="n">${esc(fmtMoney(ivTotals(v).total))}</td><td><span class="ivst ${st}" style="margin:0">${ivStLabel[st]}</span></td></tr>`}).join('')}</tbody></table>`;
     L.querySelectorAll('tr[data-id]').forEach(r=>ivPress(r,r.dataset.id));
   }else{
-    L.innerHTML=rows.map(v=>{const st=ivStatus(v);return`<button class="ivcard ${st==='void'?'void':''} ${isSel(v)?'sel':''}" data-id="${esc(v.id)}"><span class="ck"></span><span class="m"><b>${esc(v.client&&v.client.name||'No client name')}</b><small>${esc(v.no)} · ${esc(ivFmtDate(v.date))}${st!=='paid'&&st!=='void'&&v.due?' · due '+esc(ivFmtDate(v.due)):''}</small></span><span class="r"><b>${esc(fmtMoney(ivTotals(v).total))}</b><span class="ivst ${st}">${ivStLabel[st]}</span></span></button>`}).join('');
+    L.innerHTML=rows.map(v=>{const st=ivStatus(v);return`<button class="ivcard ${st==='void'?'void':''} ${isSel(v)?'sel':''}" data-id="${esc(v.id)}"><span class="ck">${isSel(v)?'✓':''}</span><span class="m"><b>${esc(v.client&&v.client.name||'No client name')}</b><small>${esc(v.no)} · ${esc(ivFmtDate(v.date))}${st!=='paid'&&st!=='void'&&v.due?' · due '+esc(ivFmtDate(v.due)):''}</small></span><span class="r"><b>${esc(fmtMoney(ivTotals(v).total))}</b><span class="ivst ${st}">${ivStLabel[st]}</span></span></button>`}).join('');
     L.querySelectorAll('.ivcard').forEach(b=>ivPress(b,b.dataset.id));
   }
   L.insertAdjacentHTML('beforeend',ivSummaryHTML(rows));
@@ -3574,10 +3577,11 @@ function ivPress(el,id){let t=null,long=false,sx=0,sy=0;
   el.addEventListener('click',()=>{if(long){long=false;return}if(IV.sel)ivSelToggle(id);else invEdit(id)})}
 function ivSelStart(){IV.sel=new Set();$('#inv').classList.add('selecting');$('#ivSelMark').classList.add('on');ivSelUI()}
 function ivSelEnd(){IV.sel=null;$('#inv').classList.remove('selecting');$('#ivSelMark').classList.remove('on');ivRender()}
-function ivSelToggle(id){if(!IV.sel)return;IV.sel.has(id)?IV.sel.delete(id):IV.sel.add(id);if(!IV.sel.size){ivSelEnd();return}ivSelUI()}
-function ivSelUI(){$('#ivSelN').textContent=IV.sel.size+' selected';ivRender()}
+function ivSelToggle(id){if(!IV.sel)return;IV.sel.has(id)?IV.sel.delete(id):IV.sel.add(id);ivSelUI()}
+function ivSelUI(){const n=IV.sel.size,v=ivVisible();$('#ivSelN').textContent=n+' selected';$('#ivSelAll').textContent=v.length&&v.every(x=>IV.sel.has(x.id))?'Select none':'Select all';
+  ['#ivSelPaid','#ivSelShare','#ivSelDel'].forEach(s=>$(s).disabled=!n);ivRender()}
 $('#ivSelX').onclick=()=>ivSelEnd();
-$('#ivSelAll').onclick=()=>{const vis=ivVisible();if(vis.every(v=>IV.sel.has(v.id)))IV.sel.clear();else vis.forEach(v=>IV.sel.add(v.id));if(!IV.sel.size){ivSelEnd();return}ivSelUI()};
+$('#ivSelAll').onclick=()=>{const vis=ivVisible();if(vis.every(v=>IV.sel.has(v.id)))IV.sel.clear();else vis.forEach(v=>IV.sel.add(v.id));ivSelUI()};
 $('#ivSelPaid').onclick=()=>{const ids=[...IV.sel];ivLoad();let n=0;IV.list.forEach(v=>{if(ids.includes(v.id)&&!v.void&&!v.paid){v.paid=true;v.paidOn=ivToday();n++}});ivStore();ivSelEnd();toast(n?`Marked ${n} as paid`:'Those are already paid')};
 $('#ivSelShare').onclick=async()=>{const ids=[...IV.sel];ivLoad();const vs=IV.list.filter(v=>ids.includes(v.id));if(!vs.length)return;busy('Making '+vs.length+' PDF'+(vs.length>1?'s':'')+'…');
   try{const files=[];for(const v of vs){if(!v.void&&!v.biz)v.biz=ivBizSnap();files.push({name:ivFileName(v),bytes:await ivPdf(v),type:'application/pdf'});if(!v.void&&!v.sent)v.sent=Date.now()}ivStore();unbusy();ivSelEnd();readyShare(files,'Invoices')}catch(e){console.error(e);unbusy();toast('Could not make the PDFs')}};
