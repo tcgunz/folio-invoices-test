@@ -3463,6 +3463,10 @@ body.noiv .ivx{display:none!important}
 #modal .ivincf .fld input:not([type=checkbox]),#modal .ivincf .fld select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:inherit;box-sizing:border-box}
 #modal .ivincf .fld label{word-break:normal}
 #modal .ivincf .fld.cb input{width:18px;height:18px;flex:none}
+.mioFl{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:8px;font:inherit;font-size:13px;color:var(--ink)}
+.mioFl span:first-child{flex:1;min-width:0}.mioFl .lk{color:#15803d;font-weight:700;flex:none}
+.mioF{display:flex;gap:12px;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line)}
+.mioF input{width:20px;height:20px;flex:none}.mioF small{display:block;color:var(--muted)}
 .ivcl{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .ivcl span{flex:1;min-width:0}
 .ivcl small{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -3691,11 +3695,23 @@ function incEdit(id){
 }
 
 /* ---- money in vs out: income (paid invoices + other income) against receipts ---- */
-const MIO={year:String(new Date().getFullYear()),rc:[]};
+const MIO={year:String(new Date().getFullYear()),rc:[],all:[]};
+/* which receipt folders count as money out; empty/missing = every folder */
+function mioFolders(){try{const f=JSON.parse(lsGet('foliotest.mioFolders')||'null');return Array.isArray(f)?f:null}catch(e){return null}}
+function mioPickFolders(){const names=[...new Set(MIO.all.map(d=>d.folder||'Library'))].sort((a,b)=>a.localeCompare(b));
+  if(!names.length){toast('No receipts with amounts yet');return}
+  const cur=mioFolders(),on=n=>!cur||cur.includes(n),cnt=n=>MIO.all.filter(d=>(d.folder||'Library')===n).length;
+  openModal(`<h3>Which receipts count?</h3><p class="small" style="margin-top:-6px">Choose the folders that hold business expenses. Leave out personal ones, like home utilities or medical.</p>
+   <div style="max-height:46vh;overflow:auto;margin-bottom:6px">${names.map((n,i)=>`<label class="mioF"><input type="checkbox" data-f="${i}" ${on(n)?'checked':''}><span><b>${esc(n)}</b><small>${cnt(n)} receipt${cnt(n)>1?'s':''}</small></span></label>`).join('')}</div>
+   <div class="btns"><button class="btn" data-x>Cancel</button><button class="btn pri" id="mioFOk">Save</button></div>`);
+  $('#mioFOk').onclick=()=>{const pick=names.filter((n,i)=>$(`#modal [data-f="${i}"]`).checked);if(!pick.length){toast('Pick at least one folder');return}
+    lsSet('foliotest.mioFolders',JSON.stringify(pick.length===names.length?null:pick));closeModal();mioRender()}}
 async function mioOpen(){$('#mio').classList.add('on');paintIcons($('#mio'));$('#mioBody').innerHTML='<p class="small" style="text-align:center;padding:30px">Adding things up…</p>';
-  try{const docs=await ltx('docs','readonly',s=>s.getAll());MIO.rc=(docs||[]).filter(d=>d&&d.receipt&&/^\d{4}-\d{2}-\d{2}$/.test(d.receipt.date||'')&&rcCharged(d.receipt)>0)}catch(e){MIO.rc=[]}
+  try{const docs=await ltx('docs','readonly',s=>s.getAll());MIO.all=(docs||[]).filter(d=>d&&d.receipt&&/^\d{4}-\d{2}-\d{2}$/.test(d.receipt.date||'')&&rcCharged(d.receipt)>0)}catch(e){MIO.all=[]}
   mioRender()}
-function mioRender(){ivLoad();ivIncLoad();
+function mioRender(){ivLoad();ivIncLoad();const FS=mioFolders();MIO.rc=MIO.all.filter(d=>!FS||FS.includes(d.folder||'Library'));
+  const fnames=[...new Set(MIO.all.map(d=>d.folder||'Library'))],fUsed=FS?fnames.filter(n=>FS.includes(n)):fnames;
+  const fline=MIO.all.length?`<button class="mioFl" id="mioFBtn"><span>Money out counts receipts from: <b>${esc(fUsed.join(', ')||'none')}</b>${FS?'':' (all folders)'}</span><span class="lk">Change</span></button>`:'';
   const ins=[];IV.list.forEach(v=>{if(v.void||!v.paid)return;const d=v.paidOn||v.date;const t=ivTotals(v);if(d)ins.push({d,amt:t.total,tax:t.tax})});
   IV.inc.forEach(x=>{if(x.date)ins.push({d:x.date,amt:ivAmt(x),tax:ivTaxOf(x)})});
   const outs=MIO.rc.map(doc=>({d:doc.receipt.date,amt:rcCharged(doc.receipt),tax:ivN(doc.receipt.tax)}));
@@ -3710,7 +3726,7 @@ function mioRender(){ivLoad();ivIncLoad();
   const used=M.filter(x=>x.in||x.out),TX=REGION.tax||'Tax',fm=v=>esc(fmtMoney(v)),mn=k=>{try{return new Date(k+'-15T12:00:00').toLocaleDateString(REGION.locale,{month:'short'})}catch(e){return k}};
   const prof=T.in-T.out,net=T.tin-T.tout;
   $('#mioTitle').textContent='Money in vs out · '+MIO.year;
-  $('#mioBody').innerHTML=!used.length?`<div style="text-align:center;padding:40px 20px;color:var(--muted)"><p style="font-size:15px;color:var(--ink);font-weight:600">Nothing for ${esc(MIO.year)} yet</p><p class="small">Paid invoices and recorded income show here as money in. Receipts with an amount show as money out.</p></div>`:`
+  $('#mioBody').innerHTML=fline+(!used.length?`<div style="text-align:center;padding:40px 20px;color:var(--muted)"><p style="font-size:15px;color:var(--ink);font-weight:600">Nothing for ${esc(MIO.year)} yet</p><p class="small">Paid invoices and recorded income show here as money in. Receipts with an amount show as money out.</p></div>`:`
    <div class="mioTop"><div><small>Money in</small><b style="color:#166534">${fm(T.in)}</b></div><div><small>Money out</small><b style="color:#b45309">${fm(T.out)}</b></div><div><small>${prof>=0?'Profit':'Loss'}</small><b style="color:${prof>=0?'#15803d':'#dc2626'}">${fm(Math.abs(prof))}</b></div></div>
    <div class="ivbox"><h5>By month</h5><table class="mioT"><thead><tr><th>Month</th><th class="n">In</th><th class="n">Out</th><th class="n">Profit</th></tr></thead><tbody>
     ${used.map(x=>{const p=x.in-x.out;return`<tr><td>${esc(mn(x.k))}</td><td class="n">${fm(x.in)}</td><td class="n">${fm(x.out)}</td><td class="n" style="color:${p>=0?'#15803d':'#dc2626'}">${p<0?'−':''}${fm(Math.abs(p))}</td></tr>`}).join('')}
@@ -3719,8 +3735,9 @@ function mioRender(){ivLoad();ivIncLoad();
     <div class="ivrow"><span>${esc(TX)} you collected</span><span>${fm(T.tin)}</span></div>
     <div class="ivrow"><span>${esc(TX)} you paid on expenses</span><span>${fm(T.tout)}</span></div>
     <div class="ivrow" style="border-top:1px solid var(--line);margin-top:4px;padding-top:8px"><span><b>${net>=0?'Roughly owed':'Roughly refunded'}</b></span><span>${fm(Math.abs(net))}</span></div>
-    <p class="small" style="margin:8px 0 2px">An estimate for your records, not for filing. It counts every receipt in Folio (including personal ones), and rules such as the Quick Method change the real amount. Check with your accountant.</p></div>
-   <p class="small" style="text-align:center;margin:10px 0">Money in: paid invoices (by the date paid) and recorded income. Money out: receipts, including tips.</p>`;
+    <p class="small" style="margin:8px 0 2px">An estimate for your records, not for filing. It uses the receipts in the folders you chose, and rules such as the Quick Method change the real amount. Check with your accountant.</p></div>
+   <p class="small" style="text-align:center;margin:10px 0">Money in: paid invoices (by the date paid) and recorded income. Money out: receipts in the folders above, including tips.</p>`);
+  if($('#mioFBtn'))$('#mioFBtn').onclick=mioPickFolders;
 }
 $('#mioBack').onclick=()=>$('#mio').classList.remove('on');
 
