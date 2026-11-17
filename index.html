@@ -3280,26 +3280,34 @@ const PINCH={on:null};
 })();
 
 /* ---------------- phone back button: step back through screens instead of leaving ---------------- */
-const NAV={stack:[],fromPop:false,last:0};
-/* One extra history entry (the "guard") always sits on top of Folio's page. Pressing back lands on Folio's page,
-   we put the guard back and close whatever is on top. Closing screens from inside the app never touches history,
-   so quick close-then-open sequences can't drift back out of the app. */
-function navGuard(){try{history.pushState({folio:1},'')}catch(e){}}
+const NAV={stack:[],fromPop:false,last:0,n:0};
+/* Every screen that opens adds one history entry, made during the tap that opened it. Browsers skip entries a page
+   adds without a tap, so entries made later (e.g. after a back press) could let back fall straight out of Folio.
+   Back closes the top screen. Screens closed with in-app buttons just leave their entry behind; later back presses
+   use those up, and leaving Folio steps over all of them at once. */
+const navActive=()=>!!(navigator.userActivation&&navigator.userActivation.isActive);
+function navPush(){try{history.pushState({folio:Date.now()},'');NAV.n++;NAV.armed=navActive()}catch(e){}}
+function navGuard(){if(NAV.n<1)navPush()}
 function navWatch(el,close){
   if(!el)return;let was=el.classList.contains('on');
   new MutationObserver(()=>{const on=el.classList.contains('on');if(on===was)return;was=on;
-    if(on)NAV.stack.push({el,close});
+    if(on){NAV.stack.push({el,close});navPush()}
     else{const i=NAV.stack.map(x=>x.el).lastIndexOf(el);if(i>=0)NAV.stack.splice(i,1)}
   }).observe(el,{attributes:true,attributeFilter:['class']});
 }
+/* a document opened from a tap gets an entry too, so back leaves the document instead of the app */
+let navDocWas=false;setInterval(()=>{const open=!!(S&&S.pages&&S.pages.length);if(open&&!navDocWas&&navActive())navPush();navDocWas=open},400);
 addEventListener('popstate',()=>{
+  NAV.n=Math.max(0,NAV.n-1);
   const top=NAV.stack[NAV.stack.length-1];
-  if(top){navGuard();NAV.fromPop=true;try{top.close()}finally{NAV.fromPop=false}if(NAV.stack[NAV.stack.length-1]===top)NAV.stack.pop();return}
+  if(top){NAV.fromPop=true;try{top.close()}finally{NAV.fromPop=false}if(NAV.stack[NAV.stack.length-1]===top)NAV.stack.pop();navGuard();return}
   if(S.pages.length){navGuard();leaveDoc();return}
-  if(Date.now()-NAV.last<2200){history.back();return}
+  if(Date.now()-NAV.last<2200){const k=NAV.n+1;NAV.n=0;history.go(-k);return}
   NAV.last=Date.now();toast('Press back again to exit Folio',2200);navGuard();
 });
+/* the first entry is made on the first tap, so the browser keeps it */
 navGuard();
+['pointerup','keydown'].forEach(ev=>addEventListener(ev,()=>{if(!NAV.armed&&navActive())navPush()},true));
 function leaveDoc(){
   const go=()=>{const fromLib=!!S.libId;resetDoc();closeDrawers();relayout(false);if(fromLib)openLibrary()};
   if(!S.dirty){go();return}
