@@ -3418,6 +3418,9 @@ body.noiv .ivx{display:none!important}
 #ivPrev.zoom #ipBody canvas{width:200%;max-width:none}
 #ipBody .msg{color:#fff;text-align:center;padding:40px 20px}
 .rsthumb{display:block;width:100%;max-height:46vh;object-fit:contain;object-position:top;background:#f3f4f6;border:1px solid var(--line);border-radius:10px;margin:0 0 12px}
+.ivsz{display:flex;gap:6px}.ivsz button{flex:1;height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit;font-size:14px}
+.ivsz button.on{background:#15803d;border-color:#15803d;color:#fff;font-weight:600}
+.ivlogo{width:160px!important;height:64px!important}
 .ivcl{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .ivcl span{flex:1;min-width:0}
 .ivcl small{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -3442,7 +3445,7 @@ body.ci #menu [data-m=ivtoggle] .ic{color:#15803d}
 <div id="invEd">
   <div class="sh"><button class="tb" id="ieBack"><span class="ic" data-i="back"></span></button><b id="ieTitle">New invoice</b><span class="sp"></span><button class="btn" id="ieDup" style="height:36px;flex:none">Copy</button><button class="btn red" id="ieDel" style="height:36px;flex:none;margin-left:6px">Delete</button></div>
   <div id="ivForm"></div>
-  <div class="sf"><button class="btn" id="ieSave">Save</button><button class="btn" id="iePrev"><span class="ic" data-i="image"></span>Preview</button><button class="btn pri" id="iePdf"><span class="ic" data-i="share"></span>PDF &amp; send</button></div>
+  <div class="sf"><button class="btn" id="ieSave">Save</button><button class="btn" id="iePrev"><span class="ic" data-i="image"></span>Preview</button><button class="btn pri" id="iePdf"><span class="ic" data-i="share"></span>Send PDF</button></div>
 </div>
 <div id="ivPrev">
   <div class="sh"><button class="tb" id="ipBack"><span class="ic" data-i="back"></span></button><b id="ipTitle">Preview</b><span class="sp"></span><button class="tb" id="ipZoom" aria-label="Zoom"><span class="ic" data-i="plus"></span></button></div>
@@ -3461,6 +3464,13 @@ const IV_COLORS=['#4338ca','#1d4ed8','#0f766e','#15803d','#b45309','#b91c1c','#b
 function ivLoad(){try{IV.list=JSON.parse(lsGet(ivKey)||'[]')||[]}catch(e){IV.list=[]}}
 function ivStore(){lsSet(ivKey,JSON.stringify(IV.list));try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}
 function ivBiz(){try{return JSON.parse(lsGet(ivBizKey)||'{}')||{}}catch(e){return{}}}
+/* each sent invoice keeps a copy of the business details it went out with; logos are stored once and shared */
+const ivLogosKey='foliotest.logos';
+function ivLogos(){try{return JSON.parse(lsGet(ivLogosKey)||'{}')||{}}catch(e){return{}}}
+const ivHash=s=>{let a=5381;for(let i=0;i<s.length;i++)a=((a<<5)+a+s.charCodeAt(i))|0;return 'L'+(a>>>0).toString(36)+s.length.toString(36)};
+function ivBizSnap(){const b=ivBiz();const s={...b};delete s.logo;delete s.terms;
+  if(b.logo){const k=ivHash(b.logo);const L=ivLogos();if(!L[k]){L[k]=b.logo;lsSet(ivLogosKey,JSON.stringify(L))}s.logoKey=k}return s}
+function ivBizOf(v){if(!v||!v.biz)return ivBiz();const s={...v.biz};s.logo=s.logoKey?(ivLogos()[s.logoKey]||''):'';return s}
 function ivClients(){try{return JSON.parse(lsGet(ivClKey)||'[]')||[]}catch(e){return[]}}
 function ivSaveClients(c){lsSet(ivClKey,JSON.stringify(c))}
 const ivToday=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
@@ -3554,7 +3564,7 @@ $('#ivSelX').onclick=()=>ivSelEnd();
 $('#ivSelAll').onclick=()=>{const vis=ivVisible();if(vis.every(v=>IV.sel.has(v.id)))IV.sel.clear();else vis.forEach(v=>IV.sel.add(v.id));if(!IV.sel.size){ivSelEnd();return}ivSelUI()};
 $('#ivSelPaid').onclick=()=>{const ids=[...IV.sel];ivLoad();let n=0;IV.list.forEach(v=>{if(ids.includes(v.id)&&!v.void&&!v.paid){v.paid=true;v.paidOn=ivToday();n++}});ivStore();ivSelEnd();toast(n?`Marked ${n} as paid`:'Those are already paid')};
 $('#ivSelShare').onclick=async()=>{const ids=[...IV.sel];ivLoad();const vs=IV.list.filter(v=>ids.includes(v.id));if(!vs.length)return;busy('Making '+vs.length+' PDF'+(vs.length>1?'s':'')+'…');
-  try{const files=[];for(const v of vs){files.push({name:ivFileName(v),bytes:await ivPdf(v),type:'application/pdf'});if(!v.void&&!v.sent)v.sent=Date.now()}ivStore();unbusy();ivSelEnd();readyShare(files,'Invoices')}catch(e){console.error(e);unbusy();toast('Could not make the PDFs')}};
+  try{const files=[];for(const v of vs){if(!v.void&&!v.biz)v.biz=ivBizSnap();files.push({name:ivFileName(v),bytes:await ivPdf(v),type:'application/pdf'});if(!v.void&&!v.sent)v.sent=Date.now()}ivStore();unbusy();ivSelEnd();readyShare(files,'Invoices')}catch(e){console.error(e);unbusy();toast('Could not make the PDFs')}};
 $('#ivSelDel').onclick=()=>{const ids=[...IV.sel];ivLoad();const vs=IV.list.filter(v=>ids.includes(v.id));const sent=vs.filter(v=>v.sent&&!v.void),rest=vs.filter(v=>!(v.sent&&!v.void));
   openModal(`<h3>Delete ${vs.length} invoice${vs.length>1?'s':''}?</h3>${sent.length?`<p class="small"><b>${sent.length}</b> of these ${sent.length>1?'were':'was'} already sent, so ${sent.length>1?'they':'it'} will be marked <b>Void</b> instead and kept in your records. Their numbers won't be used again.</p>`:''}${rest.length?`<p class="small"><b>${rest.length}</b> will be deleted for good.</p>`:''}<div class="btns"><button class="btn" data-x>Cancel</button><button class="btn red" id="ivSelDelOk">${sent.length&&!rest.length?'Void':'Delete'}</button></div>`);
   $('#ivSelDelOk').onclick=()=>{if(sent.length)ivSetVoid(sent.map(v=>v.id),true);if(rest.length)ivRemove(rest.map(v=>v.id));closeModal();ivSelEnd();toast([rest.length?rest.length+' deleted':'',sent.length?sent.length+' voided':''].filter(Boolean).join(', '))}};
@@ -3566,14 +3576,42 @@ $('#ivSort').onchange=e=>{IV.sort=e.target.value;lsSet('foliotest.ivsort',IV.sor
 $('#ivView').onclick=()=>{IV.view=IV.view==='table'?'cards':'table';lsSet('foliotest.ivview',IV.view);ivRender()};
 $('#ivMore').onclick=()=>{openModal(`<h3>Invoices</h3>
    <button class="big" id="ivmCl"><span class="ic iv" data-i="books"></span><span><b>Saved clients</b><small>${ivClients().length} saved · edit or remove</small></span></button>
-   <button class="big" id="ivmCsv"><span class="ic iv" data-i="grid"></span><span><b>Export to spreadsheet</b><small>CSV of all invoices, for your accountant</small></span></button>
+   <button class="big" id="ivmCsv"><span class="ic iv" data-i="grid"></span><span><b>Export to spreadsheet</b><small>Excel or CSV, by month, for your accountant</small></span></button>
    <div class="btns"><button class="btn" data-x>Close</button></div>`);
-  $('#ivmCl').onclick=ivClientsModal;$('#ivmCsv').onclick=()=>{closeModal();ivExportCsv()}};
-function ivExportCsv(){ivLoad();if(!IV.list.length){toast('No invoices to export yet');return}
+  $('#ivmCl').onclick=ivClientsModal;$('#ivmCsv').onclick=ivExportModal};
+function ivExportModal(){ivLoad();if(!IV.list.length){closeModal();toast('No invoices to export yet');return}
+  const vis=ivVisible(),narrowed=IV.month!=='all'||IV.filter!=='all'||IV.q.trim();
+  openModal(`<h3>Export invoices</h3><p class="small" style="margin-top:-6px">Both open in Excel and Google Sheets.</p>
+   ${narrowed?`<div class="fld"><label>Include</label><select id="exScope" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit"><option value="view">What's on screen now (${vis.length})</option><option value="all">All invoices (${IV.list.length})</option></select></div>`:''}
+   <button class="big" id="exX"><span class="ic iv" data-i="grid"></span><span><b>Excel (.xlsx) · recommended</b><small>A sheet for each month, plus totals by month and by client</small></span></button>
+   <button class="big" id="exC"><span class="ic iv" data-i="list"></span><span><b>CSV</b><small>One plain list with a Month column, for other software</small></span></button>
+   <div class="btns"><button class="btn" data-x>Cancel</button></div>`);
+  const pick=()=>($('#exScope')&&$('#exScope').value==='view')?vis:IV.list;
+  $('#exX').onclick=()=>{const L=pick();closeModal();ivExportXlsx(L)};$('#exC').onclick=()=>{const L=pick();closeModal();ivExportCsv(L)}}
+const ivMonthName=m=>{try{return new Date(m+'-15T12:00:00').toLocaleDateString('en-CA',{month:'short',year:'numeric'})}catch(e){return m}};
+const ivSortNo=L=>L.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||ivNum(a.no)-ivNum(b.no));
+function ivExportCsv(L){L=ivSortNo(L||IV.list);
   const q=s=>{s=String(s==null?'':s);return/[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
-  const head=['Invoice','Date','Due','Client','Client email','Subtotal',(REGION.tax||'Tax'),'Total','Status','Paid on'];
-  const lines=[head.join(',')].concat(IV.list.slice().sort((a,b)=>ivNum(a.no)-ivNum(b.no)).map(v=>{const t=ivTotals(v);return[v.no,v.date,v.due,v.client&&v.client.name,v.client&&v.client.email,t.sub.toFixed(2),t.tax.toFixed(2),t.total.toFixed(2),ivStLabel[ivStatus(v)],v.paid?(v.paidOn||''):''].map(q).join(',')}));
-  const bytes=new TextEncoder().encode('﻿'+lines.join('\r\n'));readyShare([{name:'Invoices '+ivToday()+'.csv',bytes,type:'text/csv'}],'Invoices')}
+  const head=['Month','Invoice','Date','Due','Client','Client email','Subtotal',(REGION.tax||'Tax'),'Total','Status','Paid on'];
+  const lines=[head.join(',')].concat(L.map(v=>{const t=ivTotals(v);return[String(v.date||'').slice(0,7),v.no,v.date,v.due,v.client&&v.client.name,v.client&&v.client.email,t.sub.toFixed(2),t.tax.toFixed(2),t.total.toFixed(2),ivStLabel[ivStatus(v)],v.paid?(v.paidOn||''):''].map(q).join(',')}));
+  readyShare([{name:'Invoices '+ivToday()+'.csv',bytes:new TextEncoder().encode('﻿'+lines.join('\r\n')),type:'text/csv'}],'Invoices')}
+function ivExportXlsx(L){L=ivSortNo(L||IV.list);if(!L.length){toast('Nothing to export');return}
+  const C=REGION.cur,TX=REGION.tax||'Tax',money=x=>({v:Math.round(x*100)/100,t:'n',s:1}),bm=x=>({v:Math.round(x*100)/100,t:'n',s:3}),B=s=>({v:s,t:'s',s:2}),dt=d=>d?{v:d,t:'d'}:'';
+  const H=['Invoice','Date','Due','Client','Client email',`Subtotal (${C})`,`${TX} (${C})`,`Total (${C})`,'Status','Paid on'].map(B),COLS=[11,12,12,26,28,14,12,14,10,12];
+  const sheetOf=(name,list)=>{const rows=[H];let s=0,t=0,tot=0;
+    list.forEach(v=>{const x=ivTotals(v),st=ivStatus(v);rows.push([v.no,dt(v.date),dt(v.due),v.client&&v.client.name||'',v.client&&v.client.email||'',money(x.sub),money(x.tax),money(x.total),ivStLabel[st],v.paid?dt(v.paidOn):'']);if(!v.void){s+=x.sub;t+=x.tax;tot+=x.total}});
+    rows.push([]);rows.push([B('Total (not counting void)'),'','','','',bm(s),bm(t),bm(tot)]);return{name,freeze:true,cols:COLS,rows}};
+  const months=[...new Set(L.map(v=>String(v.date||'').slice(0,7)))].sort();
+  const sum=(list)=>{let n=0,b=0,tx=0,p=0,o=0;list.forEach(v=>{if(v.void)return;const x=ivTotals(v);n++;b+=x.total;tx+=x.tax;if(v.paid)p+=x.total;else o+=x.total});return{n,b,tx,p,o}};
+  const MR=[['Month','Invoices',`Billed (${C})`,`${TX} (${C})`,`Paid (${C})`,`Still owed (${C})`].map(B)];
+  months.forEach(m=>{const s=sum(L.filter(v=>String(v.date||'').slice(0,7)===m));MR.push([/^\d{4}-\d{2}$/.test(m)?ivMonthName(m):'No date',s.n,money(s.b),money(s.tx),money(s.p),money(s.o)])});
+  const all=sum(L);MR.push([]);MR.push([B('Total'),{v:all.n,t:'n',s:2},bm(all.b),bm(all.tx),bm(all.p),bm(all.o)]);
+  const by=new Map();L.forEach(v=>{if(v.void)return;const k=(v.client&&v.client.name||'No client name').trim(),x=ivTotals(v);const c=by.get(k.toLowerCase())||{name:k,n:0,b:0,p:0,o:0};c.n++;c.b+=x.total;if(v.paid)c.p+=x.total;else c.o+=x.total;by.set(k.toLowerCase(),c)});
+  const CR=[['Client','Invoices',`Billed (${C})`,`Paid (${C})`,`Still owed (${C})`].map(B)];[...by.values()].sort((a,b)=>b.o-a.o||b.b-a.b).forEach(c=>CR.push([c.name,c.n,money(c.b),money(c.p),money(c.o)]));
+  const sheets=[{name:'By month',cols:[14,10,14,12,14,16],rows:MR},{name:'By client',cols:[28,10,14,14,16],rows:CR},sheetOf('All invoices',L)];
+  months.forEach(m=>sheets.push(sheetOf(/^\d{4}-\d{2}$/.test(m)?ivMonthName(m):'No date',L.filter(v=>String(v.date||'').slice(0,7)===m))));
+  try{const bytes=buildXlsx(sheets);readyShare([{name:'Invoices '+ivToday()+'.xlsx',bytes,type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}],'Invoices')}
+  catch(e){console.error(e);toast('Could not make the spreadsheet')}}
 function ivClientsModal(){const c=ivClients().sort((a,b)=>a.name.localeCompare(b.name));
   openModal(`<h3>Saved clients</h3><p class="small" style="margin-top:-6px">Clients are saved automatically when you save an invoice. Start typing a name on an invoice to fill in their details.</p>
    <div style="max-height:50vh;overflow:auto">${c.length?c.map((x,i)=>`<div class="ivcl"><span><b>${esc(x.name)}</b><small>${esc(x.email||'No email')}${x.address?' · '+esc(x.address.replace(/\n/g,', ')):''}</small></span><button class="btn red" data-i="${i}" style="flex:none;height:34px">Remove</button></div>`).join(''):'<p class="small" style="padding:10px 0">No saved clients yet.</p>'}</div>
@@ -3586,7 +3624,7 @@ function ivBlank(){const biz=ivBiz();return{id:'iv'+Date.now().toString(36)+Math
 function invEdit(id,draft){
   ivLoad();const old=id?IV.list.find(v=>v.id===id):null;
   IV.cur=draft||(old?JSON.parse(JSON.stringify(old)):ivBlank());
-  IV.isNew=!old;IV.dirty=!!draft;const b=ivBiz();IV.logo=b.logo||'';IV.color=b.color||IV_COLORS[0];
+  IV.isNew=!old;IV.dirty=!!draft;const b=ivBiz();IV.logo=b.logo||'';IV.color=b.color||IV_COLORS[0];IV.logoSize=b.logoSize||'m';
   ivHeader();ivForm();$('#invEd').classList.add('on');paintIcons($('#invEd'));$('#ivForm').scrollTop=0;
 }
 function ivHeader(){const old=!IV.isNew;$('#ieTitle').textContent=old?'Invoice '+IV.cur.no:'New invoice';$('#ieDel').style.display=old?'':'none';$('#ieDup').style.display=old?'':'none';
@@ -3597,9 +3635,12 @@ function ivForm(){
   $('#ivClientList').innerHTML=ivClients().map(c=>`<option value="${esc(c.name)}">`).join('');
   F.innerHTML=`
    ${v.void?`<div class="ivbanner"><span style="flex:1"><b>This invoice is void.</b> It stays in your records and its number won't be used again.</span><button class="btn" id="ivUnvoid" style="flex:none;height:36px">Restore</button></div>`:''}
+   ${v.biz&&!v.void?`<div class="ivbanner" style="background:#f0fdf4;border-color:#bbf7d0"><span style="flex:1">This invoice keeps the business details it was sent with${v.biz.name?' ('+esc(v.biz.name)+')':''}, so it always looks the same. Changes below apply to new invoices.</span><button class="btn" id="ivRebiz" style="flex:none;height:36px">Use current</button></div>`:''}
    <div class="card"><details ${hasBiz?'':'open'}><summary>Your business${hasBiz?': '+esc(b.name):''}</summary>
     <p class="small" style="margin-top:-4px">Saved once and reused on every invoice.</p>
     <div class="fld"><label>Logo (optional)</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><div class="ivlogo" id="bzLogoPrev"></div><button class="btn" id="bzLogoPick" style="flex:none;height:36px">Choose…</button><button class="btn red" id="bzLogoDel" style="flex:none;height:36px">Remove</button></div></div>
+    <div class="fld" id="bzLogoOpts"><label>Logo size on the invoice</label><div class="ivsz" id="bzSize"><button data-s="s">Small</button><button data-s="m">Medium</button><button data-s="l">Large</button></div>
+      <div class="fld cb" style="margin:10px 0 0"><label><input type="checkbox" id="bzLogoName" ${b.logoHasName?'checked':''}> My logo already shows my business name (don't print it twice)</label></div></div>
     <div class="fld"><label>Invoice colour</label><div class="ivsw" id="bzSw">${IV_COLORS.map(c=>`<button data-c="${c}" style="background:${c}" aria-label="Colour ${c}"></button>`).join('')}<input type="color" id="bzColor" value="${esc(IV.color)}" aria-label="Custom colour"></div></div>
     ${fld('Business or your name','bzName',b.name,'e.g. Chieng Consulting')}
     <div class="g2">${fld('Email','bzEmail',b.email,'',"email",'autocomplete="email"')}${fld('Phone','bzPhone',b.phone,'',"tel")}</div>
@@ -3632,18 +3673,30 @@ function ivForm(){
   $('#clName').addEventListener('input',()=>{if(ivClients().some(c=>c.name.toLowerCase()===$('#clName').value.trim().toLowerCase())&&!$('#clEmail').value&&!$('#clAddr').value)ivPickClient()});
   $('#ivPaid').onchange=()=>{IV.dirty=true;$('#ivPaidOnW').style.display=$('#ivPaid').checked?'':'none';ivRead()};
   $('#ivAddItem').onclick=()=>{ivRead();IV.cur.items.push({desc:'',qty:'1',rate:''});IV.dirty=true;ivItems();ivTots();const r=$('#ivItems').lastElementChild;r&&r.querySelector('input').focus()};
+  if($('#ivRebiz'))$('#ivRebiz').onclick=()=>{ivRead();if(IV.biz)lsSet(ivBizKey,JSON.stringify(IV.biz));IV.cur.biz=ivBizSnap();IV.dirty=true;ivCommit();ivForm();paintIcons($('#invEd'));toast('This invoice now uses your current business details')};
   if($('#ivUnvoid'))$('#ivUnvoid').onclick=()=>{ivRead();IV.cur.void=false;ivSetVoid([IV.cur.id],false);IV.dirty=false;ivHeader();ivForm();paintIcons($('#invEd'));toast('Invoice restored');if($('#inv').classList.contains('on'))ivRender()};
   $('#bzSw').querySelectorAll('button').forEach(b=>b.onclick=()=>{IV.color=b.dataset.c;$('#bzColor').value=b.dataset.c;IV.dirty=true;ivRead();ivBrandUI()});
   $('#bzColor').oninput=e=>{IV.color=e.target.value;IV.dirty=true;ivRead();ivBrandUI()};
+  $('#bzSize').querySelectorAll('button').forEach(b=>b.onclick=()=>{IV.logoSize=b.dataset.s;IV.dirty=true;ivRead();ivBrandUI()});
   $('#bzLogoPick').onclick=()=>{$('#bzLogoF').value='';$('#bzLogoF').click()};
   $('#bzLogoDel').onclick=()=>{IV.logo='';IV.dirty=true;ivRead();ivBrandUI()};
 }
 function ivBrandUI(){const p=$('#bzLogoPrev');if(!p)return;p.innerHTML=IV.logo?`<img src="${IV.logo}" alt="Logo">`:'No logo';$('#bzLogoDel').style.display=IV.logo?'':'none';
+  $('#bzLogoOpts').style.display=IV.logo?'':'none';$('#bzSize').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.s===IV.logoSize));
   $('#bzSw').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.c.toLowerCase()===String(IV.color).toLowerCase()));
-  $('#ivForm').querySelectorAll('h4').forEach(h=>h.style.color=IV.color)}
+  const hc=IV.cur&&IV.cur.biz&&!IV.cur.void&&IV.cur.biz.color||IV.color;$('#ivForm').querySelectorAll('h4').forEach(h=>h.style.color=hc)}
 $('#bzLogoF').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();
-  r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,600/im.width,240/im.height);const c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));c.getContext('2d').drawImage(im,0,0,c.width,c.height);
-      IV.logo=c.toDataURL('image/png');IV.dirty=true;ivRead();ivBrandUI();toast('Logo added')};im.onerror=()=>toast("That picture couldn't be opened");im.src=r.result};r.readAsDataURL(f)};
+  r.onload=()=>{const im=new Image();im.onload=()=>{try{
+      let w=im.naturalWidth||im.width||600,hh=im.naturalHeight||im.height||240;const k0=Math.min(1,1600/w,1600/hh);w=Math.max(1,Math.round(w*k0));hh=Math.max(1,Math.round(hh*k0));
+      const c=document.createElement('canvas');c.width=w;c.height=hh;const x=c.getContext('2d');x.drawImage(im,0,0,w,hh);
+      /* cut away empty margins (transparent or white) so the logo itself fills the space */
+      const d=x.getImageData(0,0,w,hh).data;let x0=w,y0=hh,x1=-1,y1=-1;
+      for(let y=0;y<hh;y++)for(let xx=0;xx<w;xx++){const i=(y*w+xx)*4;if(d[i+3]>12&&!(d[i]>242&&d[i+1]>242&&d[i+2]>242)){if(xx<x0)x0=xx;if(xx>x1)x1=xx;if(y<y0)y0=y;if(y>y1)y1=y}}
+      if(x1<0){x0=0;y0=0;x1=w-1;y1=hh-1}const pad=Math.round(Math.max(x1-x0,y1-y0)*.02);x0=Math.max(0,x0-pad);y0=Math.max(0,y0-pad);x1=Math.min(w-1,x1+pad);y1=Math.min(hh-1,y1+pad);
+      const cw=x1-x0+1,ch=y1-y0+1,k=Math.min(1,900/cw,360/ch);const o=document.createElement('canvas');o.width=Math.max(1,Math.round(cw*k));o.height=Math.max(1,Math.round(ch*k));
+      o.getContext('2d').drawImage(c,x0,y0,cw,ch,0,0,o.width,o.height);
+      IV.logo=o.toDataURL('image/png');IV.dirty=true;ivRead();ivBrandUI();toast('Logo added')}catch(err){console.error(err);toast("That picture couldn't be used")}};
+    im.onerror=()=>toast("That picture couldn't be opened");im.src=r.result};r.readAsDataURL(f)};
 function ivPickClient(){const n=$('#clName').value.trim().toLowerCase();const c=ivClients().find(x=>x.name.toLowerCase()===n);if(!c)return;$('#clName').value=c.name;$('#clEmail').value=c.email||'';$('#clAddr').value=c.address||'';IV.dirty=true;ivRead()}
 function ivItems(){
   const W=$('#ivItems');
@@ -3663,7 +3716,7 @@ function ivRead(){
   v.no=g('ivNo')||v.no;v.date=g('ivDate')||ivToday();v.due=g('ivDue');v.paid=!!($('#ivPaid')&&$('#ivPaid').checked);v.paidOn=v.paid?(g('ivPaidOn')||ivToday()):'';
   v.taxName=g('ivTaxName')||'Tax';v.taxRate=num(g('ivTaxRate'))||'0';v.notes=$('#ivNotes')?$('#ivNotes').value.trim():'';
   $('#ivItems')&&$('#ivItems').querySelectorAll('.ivitem').forEach(r=>{const it=v.items[+r.dataset.i];if(!it)return;it.desc=r.querySelector('.iDesc').value.trim();it.qty=num(r.querySelector('.iQty').value);it.rate=num(r.querySelector('.iRate').value)});
-  if($('#bzName'))IV.biz={name:g('bzName'),email:g('bzEmail'),phone:g('bzPhone'),address:$('#bzAddr').value.trim(),taxNo:g('bzTaxNo'),terms:ivBiz().terms||'',logo:IV.logo||'',color:IV.color||IV_COLORS[0]};
+  if($('#bzName'))IV.biz={name:g('bzName'),email:g('bzEmail'),phone:g('bzPhone'),address:$('#bzAddr').value.trim(),taxNo:g('bzTaxNo'),terms:ivBiz().terms||'',logo:IV.logo||'',color:IV.color||IV_COLORS[0],logoSize:IV.logoSize||'m',logoHasName:!!($('#bzLogoName')&&$('#bzLogoName').checked)};
   if($('#ivSaveLib'))lsSet('foliotest.ivlib',$('#ivSaveLib').checked?'1':'0');
 }
 function ivCommit(){
@@ -3695,7 +3748,7 @@ function ivCheck(){ivRead();const v=IV.cur;
 /* send: mark as sent, keep a Library copy, then the share screen with a picture of page 1 */
 async function ivSend(bytes){
   const v=IV.cur;if(!v.void&&!v.sent)v.sent=Date.now();
-  ivCommit();busy('Making the PDF…');
+  ivCommit();if(!v.void&&!v.biz){v.biz=ivBizSnap();ivCommit()}busy('Making the PDF…');
   try{if(!bytes)bytes=await ivPdf(v);const name=ivFileName(v);
     if(lsGet('foliotest.ivlib')!=='0'){try{await libFolders();await libSave(name,'Invoices',bytes)}catch(e){console.warn(e)}}
     const thumb=await ivThumb(bytes);
@@ -3733,7 +3786,7 @@ async function ivPdf(v){
   const {PDFDocument,StandardFonts,rgb}=PDFLib;const doc=await PDFDocument.create();
   const F=await doc.embedFont(StandardFonts.Helvetica),B=await doc.embedFont(StandardFonts.HelveticaBold);
   doc.setTitle('Invoice '+v.no);doc.setCreator('Folio');doc.setProducer('Folio');
-  const biz=ivBiz(),W=612,H=792,M=50,ink=rgb(.09,.1,.12),mut=rgb(.42,.45,.5),line=rgb(.85,.87,.9);
+  const biz=ivBizOf(v),W=612,H=792,M=50,ink=rgb(.09,.1,.12),mut=rgb(.42,.45,.5),line=rgb(.85,.87,.9);
   const [ar,ag,ab]=ivHexRgb(biz.color),acc=rgb(ar,ag,ab),tint=rgb(1-(1-ar)*.1,1-(1-ag)*.1,1-(1-ab)*.1);
   const okCh=new Map();const clean=(s,f)=>{s=String(s==null?'':s).replace(/[   ]/g,' ');let o='';for(const ch of s){if(!okCh.has(ch)){let ok=true;try{f.widthOfTextAtSize(ch,10)}catch(e){ok=false}okCh.set(ch,ok)}o+=okCh.get(ch)?ch:'?'}return o};
   const money=x=>clean(fmtMoney(x),F);
@@ -3743,8 +3796,8 @@ async function ivPdf(v){
   /* header: logo, business, then INVOICE on the right */
   let ly=y;
   if(biz.logo){try{const b64=biz.logo.split(',')[1];const bytes=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));const img=/^data:image\/png/.test(biz.logo)?await doc.embedPng(bytes):await doc.embedJpg(bytes);
-      const k=Math.min(170/img.width,56/img.height);const w=img.width*k,h=img.height*k;page.drawImage(img,{x:M,y:ly-h+12,width:w,height:h});ly-=h+8}catch(e){console.warn('logo',e)}}
-  txt(biz.name||'',M,ly,{bold:true,size:16});ly-=18;
+      const LS={s:[150,40],m:[240,66],l:[320,100]}[biz.logoSize||'m']||[240,66];const k=Math.min(LS[0]/img.width,LS[1]/img.height);const w=img.width*k,h=img.height*k;page.drawImage(img,{x:M,y:ly-h+12,width:w,height:h});ly-=h+8}catch(e){console.warn('logo',e)}}
+  if(!(biz.logo&&biz.logoHasName)){txt(biz.name||'',M,ly,{bold:true,size:16});ly-=18}else ly-=4;
   [].concat(wrap(biz.address,F,9.5,250),[biz.email,biz.phone].filter(Boolean),biz.taxNo?[(REGION.tax||'Tax')+' no. '+biz.taxNo]:[]).forEach(l=>{if(l){txt(l,M,ly,{size:9.5,color:mut});ly-=13}});
   txt('INVOICE',W-M,y-2,{bold:true,size:24,color:acc,right:true});
   let ry=y-26;[['Invoice no.',v.no],['Date',ivFmtDate(v.date)],v.due&&!v.paid?['Due',ivFmtDate(v.due)]:null].filter(Boolean).forEach(([k,val])=>{txt(k,W-M-110,ry,{size:9.5,color:mut,right:true});txt(val,W-M,ry,{size:9.5,bold:true,right:true});ry-=14});
