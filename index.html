@@ -3323,9 +3323,9 @@ if(!window.pdfjsLib||!window.PDFLib)toast("The PDF engine didn't load. Check you
 </script>
 <style>
 /* ---------------- Invoices (trial) ---------------- */
-.ic.iv,.big .ic.iv{background:#e0e7ff;color:#4338ca}
-.ivx .hsec b{color:#4338ca}
-.ivx .big:hover,.ivx .big:active{box-shadow:0 0 0 2px #818cf8}
+.ic.iv,.big .ic.iv{background:#dcfce7;color:#15803d}
+.ivx .hsec b{color:#15803d}
+.ivx .big:hover,.ivx .big:active{box-shadow:0 0 0 2px #22c55e}
 body.noiv .ivx{display:none!important}
 #inv,#invEd{position:fixed;inset:0;z-index:48;background:var(--bg);color:var(--ink);display:none;flex-direction:column}
 #invEd{z-index:49}
@@ -3333,7 +3333,7 @@ body.noiv .ivx{display:none!important}
 #inv .sh,#invEd .sh{background:#fff;border-bottom:1px solid var(--line);box-shadow:0 1px 0 var(--line)}
 #invEd .sf{background:#fff;border-top:1px solid var(--line)}
 #ivChips button{background:#fff;border:1px solid var(--line);color:var(--ink)}
-#ivChips button.on{background:#4f46e5!important;border-color:#4f46e5;color:#fff!important;font-weight:600}
+#ivChips button.on{background:#15803d!important;border-color:#15803d;color:#fff!important;font-weight:600}
 .ivsum{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px 0}
 .ivsum div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .ivsum small{display:block;color:var(--muted);font-size:12px}
@@ -3346,8 +3346,8 @@ body.noiv .ivx{display:none!important}
 .ivcard .r b{display:block}
 .ivcard .ck{display:none;width:22px;height:22px;border-radius:50%;border:2px solid #c7cbd1;flex:none}
 #inv.selecting .ivcard .ck{display:block}
-.ivcard.sel{border-color:#4f46e5;box-shadow:0 0 0 2px #4f46e5 inset;background:#eef2ff}
-.ivcard.sel .ck{background:#4f46e5;border-color:#4f46e5;box-shadow:inset 0 0 0 3px #fff}
+.ivcard.sel{border-color:#15803d;box-shadow:0 0 0 2px #15803d inset;background:#f0fdf4}
+.ivcard.sel .ck{background:#15803d;border-color:#15803d;box-shadow:inset 0 0 0 3px #fff}
 .ivcard.void .m b,.ivcard.void .r b{text-decoration:line-through;color:var(--muted)}
 .ivst{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 7px;margin-top:3px}
 .ivst.paid{background:#dcfce7;color:#166534}.ivst.due{background:#fef3c7;color:#92400e}.ivst.late{background:#fee2e2;color:#991b1b}.ivst.void{background:#e5e7eb;color:#4b5563}
@@ -3357,7 +3357,7 @@ body.noiv .ivx{display:none!important}
 #ivSelBar .btn.red{background:#dc2626;border-color:#dc2626;color:#fff}
 #ivForm{flex:1;overflow:auto;padding:12px 14px 30px}
 #ivForm .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px 4px;margin-bottom:12px}
-#ivForm h4{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#4338ca}
+#ivForm h4{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#15803d}
 #ivForm .fld label{word-break:normal}
 #ivForm .fld.cb label{align-items:flex-start;line-height:1.35}
 #ivForm .fld.cb input{margin-top:2px;flex:none;width:18px;height:18px}
@@ -3379,7 +3379,7 @@ body.noiv .ivx{display:none!important}
 .ivsw input[type=color]{width:40px;height:36px;border:1px solid var(--line);border-radius:8px;padding:2px;background:#fff}
 .ivbanner{background:#f3f4f6;border:1px solid #d1d5db;border-radius:12px;padding:10px 12px;margin-bottom:12px;display:flex;gap:10px;align-items:center;font-size:14px}
 #modal .big{display:flex;align-items:center;gap:14px;width:100%;padding:12px 14px;background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;text-align:left;color:var(--ink);font:inherit}
-#modal .big:hover,#modal .big:active{box-shadow:0 0 0 2px #818cf8}
+#modal .big:hover,#modal .big:active{box-shadow:0 0 0 2px #22c55e}
 #modal .big b{display:block;font-weight:600}
 #modal .big small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
 #modal .big .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;flex:none}
@@ -3387,6 +3387,8 @@ body.noiv .ivx{display:none!important}
 .ivcl{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .ivcl span{flex:1;min-width:0}
 .ivcl small{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#inv .btn.pri,#invEd .btn.pri{background:#15803d;border-color:#15803d}
+body.ci #menu [data-m=ivtoggle] .ic{color:#15803d}
 </style>
 
 <div id="inv">
