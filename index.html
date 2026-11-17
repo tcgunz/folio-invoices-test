@@ -3387,6 +3387,26 @@ body.noiv .ivx{display:none!important}
 #modal .big small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
 #modal .big .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;flex:none}
 #modal .big .ic svg{width:22px;height:22px}
+#ivMonths:empty{display:none}
+#ivMonths button{background:#fff;border:1px solid var(--line);color:var(--ink)}
+#ivMonths button.on{background:#15803d!important;border-color:#15803d;color:#fff!important;font-weight:600}
+.ivtbl{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+.ivtbl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:9px 8px;background:#f8fafc;border-bottom:1px solid var(--line)}
+.ivtbl td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top;-webkit-user-select:none;user-select:none}
+.ivtbl tr:last-child td{border-bottom:0}
+.ivtbl .n{text-align:right;white-space:nowrap}
+.ivtbl tr.sel td{background:#f0fdf4}
+.ivtbl tr.void td{color:var(--muted);text-decoration:line-through}
+.ivtbl .cl{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ivbox{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:14px}
+.ivbox h5{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#15803d}
+.ivrow{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:14px}
+.ivrow span:last-child{font-weight:600;white-space:nowrap}
+.ivclrow{display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;padding:7px 0;border-top:1px solid var(--line);font-size:13px;align-items:baseline}
+.ivclrow:first-of-type{border-top:0}
+.ivclrow b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ivclrow small{color:var(--muted);grid-column:1/-1;margin-top:-2px}
+.ivclrow .ow{color:#b45309;font-weight:600}
 .ivcl{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .ivcl span{flex:1;min-width:0}
 .ivcl small{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -3398,7 +3418,10 @@ body.ci #menu [data-m=ivtoggle] .ic{color:#15803d}
   <div class="sh"><button class="tb" id="ivBack"><span class="ic" data-i="back"></span></button><b>Invoices</b><span class="sp"></span><button class="btn" id="ivMore" style="height:36px;flex:none;font-weight:800;font-size:18px" aria-label="More options">⋯</button><button class="btn pri" id="ivNew" style="height:36px;flex:none;margin-left:6px">New</button></div>
   <div class="ivsum"><div><small>Still owed</small><b id="ivOwed">$0.00</b></div><div><small>Paid this year</small><b id="ivPaidYr">$0.00</b></div></div>
   <div class="chips" id="ivChips"><button data-f="all" class="on">All</button><button data-f="due">Unpaid</button><button data-f="late">Overdue</button><button data-f="paid">Paid</button></div>
-  <div style="padding:10px 12px 0"><input type="search" id="ivSearch" placeholder="Search clients and invoice numbers…" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;box-sizing:border-box"></div>
+  <div class="chips" id="ivMonths"></div>
+  <div style="display:flex;gap:8px;padding:10px 12px 0;align-items:center"><input type="search" id="ivSearch" placeholder="Search clients or numbers…" style="flex:1;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;box-sizing:border-box">
+    <select id="ivSort" aria-label="Sort" style="flex:none;padding:9px 6px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:inherit;max-width:132px"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="amt">Highest amount</option><option value="client">Client A–Z</option><option value="due">Due soonest</option></select>
+    <button class="btn" id="ivView" style="flex:none;height:40px;padding:0 10px" aria-label="Switch between cards and table"></button></div>
   <div id="ivList" style="flex:1;overflow:auto;padding:12px"></div>
   <p class="small" id="ivHint" style="text-align:center;margin:0;padding:0 12px 8px">Tap an invoice to open it. Press and hold to select several.</p>
   <div id="ivSelBar"><button class="tb" id="ivSelX" style="color:#fff"><span class="ic" data-i="x"></span></button><b id="ivSelN" style="flex:1">0 selected</b><button class="btn" id="ivSelAll">All</button><button class="btn" id="ivSelPaid">Paid</button><button class="btn" id="ivSelShare">Share</button><button class="btn red" id="ivSelDel">Delete</button></div>
@@ -3416,7 +3439,7 @@ body.ci #menu [data-m=ivtoggle] .ic{color:#15803d}
 <script>
 "use strict";
 /* ---------------- Invoices (trial) ---------------- */
-const IV={list:[],filter:'all',q:'',cur:null,dirty:false,sel:null};
+const IV={list:[],filter:'all',q:'',cur:null,dirty:false,sel:null,month:'all',sort:lsGet('foliotest.ivsort')||'new',view:lsGet('foliotest.ivview')||'cards'};
 const ivKey='foliotest.invoices',ivBizKey='foliotest.biz',ivNoKey='foliotest.invno',ivRetKey='foliotest.invretired',ivClKey='foliotest.clients';
 const IV_COLORS=['#4338ca','#1d4ed8','#0f766e','#15803d','#b45309','#b91c1c','#be185d','#111827'];
 function ivLoad(){try{IV.list=JSON.parse(lsGet(ivKey)||'[]')||[]}catch(e){IV.list=[]}}
@@ -3449,21 +3472,57 @@ function ivSetVoid(ids,on){ivLoad();IV.list.forEach(v=>{if(ids.includes(v.id))v.
 
 /* ---- list screen ---- */
 function invOpen(){ivLoad();$('#inv').classList.add('on');paintIcons($('#inv'));ivRender()}
+const ivMonthLabel=m=>{try{const d=new Date(m+'-15T12:00:00');return d.toLocaleDateString(REGION.locale,d.getFullYear()===new Date().getFullYear()?{month:'short'}:{month:'short',year:'numeric'})}catch(e){return m}};
 function ivRender(){
   const yr=String(new Date().getFullYear());let owed=0,paidYr=0;
   IV.list.forEach(v=>{if(v.void)return;const t=ivTotals(v).total;if(v.paid){if(String(v.paidOn||v.date||'').startsWith(yr))paidYr+=t}else owed+=t});
   $('#ivOwed').textContent=fmtMoney(owed);$('#ivPaidYr').textContent=fmtMoney(paidYr);
   $('#ivChips').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.f===IV.filter));
-  const q=IV.q.trim().toLowerCase();
-  const rows=ivVisible(q);
+  /* month tabs, newest first */
+  const months=[...new Set(IV.list.map(v=>String(v.date||'').slice(0,7)).filter(m=>/^\d{4}-\d{2}$/.test(m)))].sort().reverse();
+  if(IV.month!=='all'&&!months.includes(IV.month))IV.month='all';
+  const MW=$('#ivMonths');MW.innerHTML=months.length>1?[`<button data-m="all" class="${IV.month==='all'?'on':''}">All months</button>`].concat(months.map(m=>`<button data-m="${m}" class="${IV.month===m?'on':''}">${esc(ivMonthLabel(m))}</button>`)).join(''):'';
+  MW.querySelectorAll('button').forEach(b=>b.onclick=()=>{IV.month=b.dataset.m;ivRender()});
+  $('#ivSort').value=IV.sort;$('#ivView').innerHTML=icon(IV.view==='table'?'grid':'list');$('#ivView').title=IV.view==='table'?'Show as cards':'Show as a table';
+  const rows=ivVisible();
   const L=$('#ivList');$('#ivHint').style.display=IV.list.length&&!IV.sel?'':'none';
   if(!IV.list.length){L.innerHTML=`<div style="text-align:center;padding:40px 20px;color:var(--muted)"><p style="font-size:15px;color:var(--ink);font-weight:600">No invoices yet</p><p class="small">Tap <b>New</b> to create your first one. You can save it as a PDF and send it from your own email.</p></div>`;return}
   if(!rows.length){L.innerHTML=`<p class="small" style="text-align:center;padding:30px">Nothing matches.</p>`;return}
-  L.innerHTML=rows.map(v=>{const st=ivStatus(v);return`<button class="ivcard ${st==='void'?'void':''} ${IV.sel&&IV.sel.has(v.id)?'sel':''}" data-id="${esc(v.id)}"><span class="ck"></span><span class="m"><b>${esc(v.client&&v.client.name||'No client name')}</b><small>${esc(v.no)} · ${esc(ivFmtDate(v.date))}${st!=='paid'&&st!=='void'&&v.due?' · due '+esc(ivFmtDate(v.due)):''}</small></span><span class="r"><b>${esc(fmtMoney(ivTotals(v).total))}</b><span class="ivst ${st}">${ivStLabel[st]}</span></span></button>`}).join('');
-  L.querySelectorAll('.ivcard').forEach(b=>ivPress(b,b.dataset.id));
+  const isSel=v=>IV.sel&&IV.sel.has(v.id);
+  if(IV.view==='table'){
+    L.innerHTML=`<table class="ivtbl"><thead><tr><th>No.</th><th>Date</th><th>Client</th><th class="n">Total</th><th>Status</th></tr></thead><tbody>${rows.map(v=>{const st=ivStatus(v);return`<tr data-id="${esc(v.id)}" class="${st==='void'?'void':''} ${isSel(v)?'sel':''}"><td>${esc(String(v.no).replace(/^INV-0*/,'#'))}</td><td style="white-space:nowrap">${esc(ivFmtDate(v.date).replace(/,? \d{4}$/,''))}</td><td class="cl">${esc(v.client&&v.client.name||'—')}</td><td class="n">${esc(fmtMoney(ivTotals(v).total))}</td><td><span class="ivst ${st}" style="margin:0">${ivStLabel[st]}</span></td></tr>`}).join('')}</tbody></table>`;
+    L.querySelectorAll('tr[data-id]').forEach(r=>ivPress(r,r.dataset.id));
+  }else{
+    L.innerHTML=rows.map(v=>{const st=ivStatus(v);return`<button class="ivcard ${st==='void'?'void':''} ${isSel(v)?'sel':''}" data-id="${esc(v.id)}"><span class="ck"></span><span class="m"><b>${esc(v.client&&v.client.name||'No client name')}</b><small>${esc(v.no)} · ${esc(ivFmtDate(v.date))}${st!=='paid'&&st!=='void'&&v.due?' · due '+esc(ivFmtDate(v.due)):''}</small></span><span class="r"><b>${esc(fmtMoney(ivTotals(v).total))}</b><span class="ivst ${st}">${ivStLabel[st]}</span></span></button>`}).join('');
+    L.querySelectorAll('.ivcard').forEach(b=>ivPress(b,b.dataset.id));
+  }
+  L.insertAdjacentHTML('beforeend',ivSummaryHTML(rows));
 }
-function ivVisible(q){q=q==null?IV.q.trim().toLowerCase():q;return IV.list.filter(v=>{const st=ivStatus(v);if(IV.filter==='paid'&&st!=='paid')return false;if(IV.filter==='due'&&st!=='due'&&st!=='late')return false;if(IV.filter==='late'&&st!=='late')return false;
-    return!q||[v.no,v.client&&v.client.name,v.client&&v.client.email].join(' ').toLowerCase().includes(q)}).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||ivNum(b.no)-ivNum(a.no))}
+/* totals for what's on screen: billed, tax, paid, owed, then each client */
+function ivSummaryHTML(rows){
+  const live=rows.filter(v=>!v.void);if(!live.length)return'';
+  let billed=0,tax=0,paid=0,owed=0;const by=new Map();
+  live.forEach(v=>{const t=ivTotals(v);billed+=t.total;tax+=t.tax;if(v.paid)paid+=t.total;else owed+=t.total;
+    const k=(v.client&&v.client.name||'No client name').trim();const c=by.get(k.toLowerCase())||{name:k,n:0,billed:0,owed:0};c.n++;c.billed+=t.total;if(!v.paid)c.owed+=t.total;by.set(k.toLowerCase(),c)});
+  const what=IV.month==='all'?'All months':ivMonthLabel(IV.month);
+  const cl=[...by.values()].sort((a,b)=>b.owed-a.owed||b.billed-a.billed);
+  return`<div class="ivbox"><h5>Totals · ${esc(what)}${IV.filter!=='all'?' · '+esc(({due:'Unpaid',late:'Overdue',paid:'Paid'})[IV.filter]):''}</h5>
+    <div class="ivrow"><span>Billed (${live.length} invoice${live.length>1?'s':''})</span><span>${esc(fmtMoney(billed))}</span></div>
+    <div class="ivrow"><span>${esc(REGION.tax||'Tax')} charged</span><span>${esc(fmtMoney(tax))}</span></div>
+    <div class="ivrow"><span>Paid</span><span style="color:#166534">${esc(fmtMoney(paid))}</span></div>
+    <div class="ivrow"><span>Still owed</span><span style="color:#b45309">${esc(fmtMoney(owed))}</span></div></div>
+   <div class="ivbox"><h5>By client</h5>${cl.map(c=>`<div class="ivclrow"><b>${esc(c.name)}</b><span>${esc(fmtMoney(c.billed))}</span><span class="${c.owed?'ow':''}">${c.owed?esc(fmtMoney(c.owed))+' owed':'Paid up'}</span><small>${c.n} invoice${c.n>1?'s':''}</small></div>`).join('')}</div>
+   <p class="small" style="text-align:center;margin:10px 0 4px">Totals leave out void invoices.</p>`;
+}
+function ivVisible(q){q=q==null?IV.q.trim().toLowerCase():q;
+  const rows=IV.list.filter(v=>{const st=ivStatus(v);if(IV.filter==='paid'&&st!=='paid')return false;if(IV.filter==='due'&&st!=='due'&&st!=='late')return false;if(IV.filter==='late'&&st!=='late')return false;
+    if(IV.month!=='all'&&String(v.date||'').slice(0,7)!==IV.month)return false;
+    return!q||[v.no,v.client&&v.client.name,v.client&&v.client.email].join(' ').toLowerCase().includes(q)});
+  const newest=(a,b)=>(b.date||'').localeCompare(a.date||'')||ivNum(b.no)-ivNum(a.no);
+  const S={new:newest,old:(a,b)=>-newest(a,b),amt:(a,b)=>ivTotals(b).total-ivTotals(a).total||newest(a,b),
+    client:(a,b)=>String(a.client&&a.client.name||'').localeCompare(String(b.client&&b.client.name||''),undefined,{sensitivity:'base'})||newest(a,b),
+    due:(a,b)=>{const r=v=>v.void?3:v.paid?2:v.due?0:1;return r(a)-r(b)||String(a.due||'').localeCompare(String(b.due||''))||newest(a,b)}};
+  return rows.sort(S[IV.sort]||newest)}
 /* tap = open, press and hold = select (same as the receipts spreadsheet) */
 function ivPress(el,id){let t=null,long=false,sx=0,sy=0;
   el.addEventListener('pointerdown',e=>{long=false;sx=e.clientX;sy=e.clientY;clearTimeout(t);t=setTimeout(()=>{long=true;if(!IV.sel)ivSelStart();ivSelToggle(id);try{navigator.vibrate&&navigator.vibrate(15)}catch(e){}},480)});
@@ -3487,6 +3546,8 @@ $('#ivBack').onclick=()=>{if(IV.sel){ivSelEnd();return}$('#inv').classList.remov
 $('#ivNew').onclick=()=>invEdit();
 $('#ivChips').querySelectorAll('button').forEach(b=>b.onclick=()=>{IV.filter=b.dataset.f;ivRender()});
 $('#ivSearch').oninput=e=>{IV.q=e.target.value;ivRender()};
+$('#ivSort').onchange=e=>{IV.sort=e.target.value;lsSet('foliotest.ivsort',IV.sort);ivRender()};
+$('#ivView').onclick=()=>{IV.view=IV.view==='table'?'cards':'table';lsSet('foliotest.ivview',IV.view);ivRender()};
 $('#ivMore').onclick=()=>{openModal(`<h3>Invoices</h3>
    <button class="big" id="ivmCl"><span class="ic iv" data-i="books"></span><span><b>Saved clients</b><small>${ivClients().length} saved · edit or remove</small></span></button>
    <button class="big" id="ivmCsv"><span class="ic iv" data-i="grid"></span><span><b>Export to spreadsheet</b><small>CSV of all invoices, for your accountant</small></span></button>
