@@ -3640,6 +3640,7 @@ body.noiv .ivx{display:none!important}
 .mioT tr.tot td{font-weight:700;border-bottom:0;border-top:2px solid var(--ink)}
 #modal .ivincf .fld input:not([type=checkbox]),#modal .ivincf .fld select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:inherit;box-sizing:border-box}
 #modal .ivincf .fld label{word-break:normal}
+#modal .ivincf .fld .autofill{background:#fef9c3!important;transition:background .6s}
 #modal .ivincf .fld.cb input{width:18px;height:18px;flex:none}
 .mioFl{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:8px;font:inherit;font-size:13px;color:var(--ink)}
 .mioFl span:first-child{flex:1;min-width:0}.mioFl .lk{color:#15803d;font-weight:700;flex:none}
@@ -3875,6 +3876,20 @@ function incEdit(id){
    <div class="btns">${old?'<button class="btn red l" id="icDel">Delete</button>':''}<button class="btn" data-x>Cancel</button><button class="btn pri" id="icSave">Save</button></div>`);
   paintIcons($('#modal'));
   $('#ivClientList').innerHTML=ivClients().map(c=>`<option value="${esc(c.name)}">`).join('');
+  const typed=new Set();['icDate','icFrom','icDesc','icAmt','icMethod','icNote'].forEach(id=>{const el=$('#'+id);if(el)el.addEventListener(el.tagName==='SELECT'?'change':'input',()=>typed.add(id))});
+  /* read the amount, date, payer and method from the proof and fill the boxes that are still empty */
+  const readProof=async bytes=>{const say=t=>{const e=$('#icProof')&&$('#icProof').querySelector('.mt .small');if(e)e.textContent=t};
+    say('Reading the proof…');let t='';try{t=await ocrPdfPages(bytes,1,p=>say(`Reading the proof… ${Math.round(p*100)}%`))}catch(e){console.warn(e);say("Couldn't read it (are you offline?). Fill in the details yourself.");return}
+    if(!$('#icAmt'))return;const r=readPayment(t),got=[];
+    const put=(id,v,label,ok)=>{const el=$('#'+id);if(!el||!v||typed.has(id)||!ok(el))return;el.value=v;el.classList.add('autofill');setTimeout(()=>el.classList.remove('autofill'),2600);got.push(label)};
+    put('icAmt',r.amount,'amount',el=>!ivN(el.value));put('icFrom',r.from,'who paid',el=>!el.value.trim());
+    put('icDate',r.date,'date',el=>!old||!el.value);
+    if(r.method&&!typed.has('icMethod')&&(!old||!x.method)&&IV_METHODS.includes(r.method)){$('#icMethod').value=r.method;$('#icMethod').classList.add('autofill');setTimeout(()=>$('#icMethod').classList.remove('autofill'),2600);got.push('how you were paid')}
+    put('icDesc',r.desc,'what for',el=>!el.value.trim());put('icNote',r.ref?'Ref '+r.ref:'','reference',el=>!el.value.trim());
+    // the proof was named before we knew the date and payer: give it the proper name now
+    if(x.docId&&(got.includes('date')||got.includes('who paid'))){try{const d=await libGet(x.docId);if(d&&d.name===x.docName&&/^Income proof /.test(d.name)){d.name=proofName();await libPut(d);x.docName=d.name;if(old)storeX()}}catch(e){}}
+    if(got.includes('amount'))calc();
+    await proofUI();toast(got.length?`Filled in from the proof: ${got.join(', ')}. Please check them.`:"Couldn't find the amount on the proof. Fill it in yourself.",5000)};
   const calc=()=>{if(!$('#icInclTax')||!$('#icInclTax').checked)return;const a=ivN($('#icAmt').value);$('#icTax').value=a?(Math.round(a*rate/(100+rate)*100)/100).toFixed(2):''};
   if($('#icInclTax'))$('#icInclTax').onchange=()=>{const on=$('#icInclTax').checked;$('#icTaxW').style.display=on?'':'none';if(on)calc();else $('#icTax').value=''};
   $('#icAmt').oninput=calc;
@@ -3897,7 +3912,7 @@ function incEdit(id){
           if(how==='add'){const doc=await PDFLib.PDFDocument.load(new Uint8Array(await d.blob.arrayBuffer())),more=await PDFLib.PDFDocument.load(bytes);
             (await doc.copyPages(more,more.getPageIndices())).forEach(pg=>doc.addPage(pg));bytes=await doc.save()}}}
       await libFolders();x.docId=await libSave(nm,folder,bytes,id);x.docName=nm;if(old)storeX();unbusy();await proofUI();
-      toast(how==='add'?'Page added to the proof':how==='replace'?'Proof replaced':'Proof attached')}
+      toast(how==='add'?'Page added to the proof':how==='replace'?'Proof replaced':'Proof attached');if(how!=='add')readProof(bytes)}
     catch(e){console.error(e);unbusy();toast("That proof couldn't be saved")}};
   const proofUI=async()=>{const P=$('#icProof');if(!P)return;
     if(!x.docId){P.innerHTML=`<div style="display:flex;gap:8px"><button class="btn" id="icPCam" style="flex:1"><span class="ic" data-i="camera"></span>Take photo</button><button class="btn" id="icPFile" style="flex:1"><span class="ic" data-i="folder"></span>Choose file</button></div>`;
@@ -3920,6 +3935,46 @@ function incEdit(id){
   if($('#icDel'))$('#icDel').onclick=()=>{ivIncLoad();IV.inc=IV.inc.filter(y=>y.id!==x.id);ivIncStore();closeModal();toast('Income deleted');if($('#inv').classList.contains('on'))ivRender();if($('#mio').classList.contains('on'))mioRender()};
 }
 
+/* ---- read a payment proof (e-transfer, cheque, deposit, payout) ---- */
+const PAY_PLATFORMS=[['Stripe',/\bstripe\b/i],['Square',/\bsquare\b/i],['PayPal',/pay\s?pal/i],['Etsy',/\betsy\b/i],['Shopify',/shopify/i],['Uber',/\buber\b/i],['DoorDash',/door\s?dash/i],['SkipTheDishes',/skip\s?the\s?dishes/i],['Amazon',/amazon/i],['Wise',/\bwise\b/i]];
+function readPayment(text){
+  const T=String(text||'').replace(/[‘’]/g,"'"),lines=T.split(/\n+/).map(l=>l.trim()).filter(Boolean),r={amount:'',date:'',from:'',method:'',ref:''};if(!lines.length)return r;
+  const plat=PAY_PLATFORMS.find(p=>p[1].test(T));
+  if(/e-?\s?transfer|interac/i.test(T))r.method='E-transfer';
+  else if(/pay\s*(to\s*)?the\s*order\s*of|\bcheque\b|\bmemo\b|dollars|\/\s?100/i.test(T))r.method='Cheque';
+  else if(plat||/\bpayout/i.test(T))r.method='Platform payout';
+  else if(/direct\s*deposit|payroll|\bdeposit/i.test(T))r.method='Direct deposit';
+  // amount: lines that say what was paid, never balances or fees
+  const BAD=/balance|available|limit|\bfees?\b|previous|pending|hold|daily|max/i;
+  const KEY=/you\s*(have\s*)?received|sent\s*you|has\s*sent|deposited|amount|payout|net\s*(amount|total|payout)|total\s*(payout|paid|received|deposit)|deposit\s*(total|amount)|transfer\s*amount|\$\s*\*+/i;
+  let amt=null;
+  for(const l of lines){if(BAD.test(l))continue;if(KEY.test(l)){const a=rcAmounts(l);if(a.length){amt=a[a.length-1];break}}}
+  if(amt==null)for(const l of lines){if(BAD.test(l))continue;const m=l.match(/\$\s*\**\s*(\d{1,3}(?:[,\s]\d{3})+|\d+)[.,](\d{2})(?!\d)/);if(m){amt=parseFloat(m[1].replace(/[,\s]/g,'')+'.'+m[2]);break}}
+  if(amt==null){const all=lines.filter(l=>!BAD.test(l)).flatMap(rcAmounts);if(all.length===1)amt=all[0]}
+  if(amt!=null&&amt>0)r.amount=amt.toFixed(2);
+  // date: Canadian cheques print YYYYMMDD in boxes
+  const box=l=>{const m=String(l||'').replace(/[^\d ]/g,' ').match(/\b(2\s?0\s?\d\s?\d)\s?([01]\s?\d)\s?([0-3]\s?\d)\b/);if(!m)return null;const mo=+m[2].replace(/\s/g,''),d=+m[3].replace(/\s/g,'');return mo>=1&&mo<=12&&d>=1&&d<=31?m:null};
+  for(let i=0;i<lines.length&&!r.date;i++){if(!/date|y\s?y\s?y\s?y/i.test(lines[i]))continue;
+    const m=box(lines[i])||box(lines[i-1])||box(lines[i+1])||box(lines[i-2])||box(lines[i+2])||(r.method==='Cheque'?lines.map(box).find(Boolean):null);
+    if(m){const y=m[1].replace(/\s/g,''),mo=+m[2].replace(/\s/g,''),d=+m[3].replace(/\s/g,'');if(mo>=1&&mo<=12&&d>=1&&d<=31)r.date=`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`}}
+  if(!r.date){const MO=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'],m=T.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(20\d\d)\b/i)||null,m2=!m&&T.match(/\b(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?,?\s+(20\d\d)\b/i);
+    if(m)r.date=`${m[3]}-${String(MO.indexOf(m[1].toLowerCase())+1).padStart(2,'0')}-${m[2].padStart(2,'0')}`;else if(m2)r.date=`${m2[3]}-${String(MO.indexOf(m2[2].toLowerCase())+1).padStart(2,'0')}-${m2[1].padStart(2,'0')}`}
+  if(!r.date)r.date=readReceipt(T).date||'';
+  // who paid
+  const clean=s=>s.replace(/\b(on|at|via|by|for|with|to)\b.*$/i,'').replace(/[^A-Za-zÀ-ÿ'.\-& ]/g,'').replace(/\s{2,}/g,' ').trim();
+  const pats=[/(?:^|\b)from\s*[:\-]\s*([A-Za-zÀ-ÿ][^\n]{1,50})/i,/received\s*\$?\s*[\d,.]+\s*(?:CAD\s*)?from\s+([A-Za-zÀ-ÿ][^\n]{1,50})/i,/([A-Z][A-Za-zÀ-ÿ'.\-]+(?:\s+[A-Z][A-Za-zÀ-ÿ'.\-]+){0,3})\s+(?:has\s+)?sent\s+you/,/(?:sender|sent\s*by|payer|remitter)\s*[:\-]?\s*([A-Za-zÀ-ÿ][^\n]{1,50})/i];
+  for(const re of pats){const m=T.match(re);if(m){const n=clean(m[1]);if(n.length>=3&&!/^(the|your|you|interac)\b/i.test(n)){r.from=n.replace(/\b([a-zà-ÿ])/g,c=>c.toUpperCase()).replace(/\b([A-Z])([A-Z]+)\b/g,(w,a,b)=>a+b.toLowerCase());break}}}
+  if(!r.from&&plat)r.from=plat[0];
+  const ms=T.match(/\bmessage\s*[:\-]?\s*([^\n]{2,60})/i);if(ms&&!/^(from|sent|this)\b/i.test(ms[1].trim()))r.desc=ms[1].trim();
+  const rf=T.match(/(?:reference\s*(?:number|no\.?|#)?|ref\.?\s*(?:no\.?|#)?|confirmation\s*(?:number|no\.?|#)?)\s*[:#]?\s*([A-Z0-9][A-Z0-9-]{5,})/i);if(rf)r.ref=rf[1];
+  return r}
+/* text of the first page(s) of a PDF, read with automatic layout */
+async function ocrPdfPages(bytes,maxPages,onProg){
+  const pdf=await pdfjsLib.getDocument({data:bytes.slice(),isEvalSupported:false}).promise;const worker=await ocrWorker(onProg);let out='';
+  try{for(let i=1;i<=Math.min(pdf.numPages,maxPages||1);i++){const pg=await pdf.getPage(i),v1=pg.getViewport({scale:1}),vp=pg.getViewport({scale:Math.min(4,Math.sqrt(4.5e6/(v1.width*v1.height)),4200/Math.max(v1.width,v1.height))});
+      const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:x,viewport:vp}).promise;
+      out+=wordLines(await ocrCanvas(worker,c))+'\n'}}
+  finally{try{await worker.terminate()}catch(e){}try{pdf.destroy()}catch(e){}}return out.trim()}
 /* an image or PDF picked by the user, as PDF bytes (photos become a one-page PDF) */
 async function ivFileToPdf(f){const buf=new Uint8Array(await f.arrayBuffer());
   if(f.type==='application/pdf'||/\.pdf$/i.test(f.name||''))return buf;
