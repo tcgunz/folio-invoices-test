@@ -416,7 +416,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 91<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 92<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -741,7 +741,13 @@ function unbusy(){$('#busy').classList.remove('on')}
 const tick=()=>new Promise(r=>setTimeout(r,30));
 function openModal(html){const m=$('#modal');m.innerHTML=html;paintIcons(m);$('#modalWrap').classList.add('on');m.querySelectorAll('[data-x]').forEach(b=>b.onclick=closeModal);return m}
 function closeModal(){$('#modalWrap').classList.remove('on');$('#modal').innerHTML=''}
-$('#modalWrap').addEventListener('pointerdown',e=>{if(e.target.id==='modalWrap')closeModal()});
+/* tapping the dark area outside closes simple pop-ups only. Forms (anything with boxes to fill in) stay open,
+   so a scroll that starts near the screen edge can't throw away what you typed. A scroll is never a tap. */
+{let bd=null;const W=$('#modalWrap');
+  W.addEventListener('pointerdown',e=>{bd=e.target===W?[e.clientX,e.clientY]:null});
+  W.addEventListener('pointerup',e=>{const d=bd;bd=null;if(!d||e.target!==W||Math.hypot(e.clientX-d[0],e.clientY-d[1])>10)return;
+    if($('#modal').querySelector('input:not([type=checkbox]):not([type=radio]),select,textarea'))return;closeModal()});
+  W.addEventListener('pointercancel',()=>{bd=null})}
 function hexRgb(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16)/255,parseInt(h.slice(2,4),16)/255,parseInt(h.slice(4,6),16)/255]}
 function dataBytes(u){const b=atob(u.split(',')[1]);const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}
 const dlP=(async()=>{try{return (window.claude&&window.claude.use)?await window.claude.use('downloads'):null}catch(e){return null}})();
