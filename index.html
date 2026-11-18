@@ -421,7 +421,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 96<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 97<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -1905,7 +1905,9 @@ function rotateIm(im,deg){
   x.fillStyle=`rgb(${r|0},${g|0},${b|0})`;x.fillRect(0,0,w,h);x.translate(w/2,h/2);x.rotate(deg*Math.PI/180);x.imageSmoothingQuality='high';x.drawImage(a,-w/2,-h/2);
   return x.getImageData(0,0,w,h);
 }
-function straighten(im,p){if(p.straight===false)return im;try{const a=textSkew(im);return a?rotateIm(im,-a):im}catch(e){return im}}
+/* Straighten text / Clean edges: off unless turned on (Save screen sets them for all pages and remembers the choice) */
+const scStraight=p=>p.straight!=null?!!p.straight:lsGet('foliotest.sc.straight')==='1',scClean=p=>p.clean!=null?!!p.clean:lsGet('foliotest.sc.clean')==='1';
+function straighten(im,p){if(!scStraight(p))return im;try{const a=textSkew(im);return a?rotateIm(im,-a):im}catch(e){return im}}
 /* ---- edge clean-up: removes steady strips of table/carpet/shadow along the edges, never isolated text ---- */
 function cleanEdges(im){
   const w=im.width,h=im.height,d=im.data;
@@ -1940,7 +1942,7 @@ function cleanEdges(im){
   return painted;
 }
 function previewScan(p,q,look,rot,maxSide){
-  let im=warp(p.c,q,maxSide||1100);const ed=SC.edit>=0&&SC.pages[SC.edit]===p;im=straighten(im,{straight:ed?SC.straight:p.straight});if((ed?SC.clean:p.clean)!==false)try{cleanEdges(im)}catch(e){}if(look!=='orig')sharpen(im);applyFilter(im,look);
+  let im=warp(p.c,q,maxSide||1100);const ed=SC.edit>=0&&SC.pages[SC.edit]===p;im=straighten(im,{straight:ed?SC.straight:p.straight});if(ed?SC.clean:scClean(p))try{cleanEdges(im)}catch(e){}if(look!=='orig')sharpen(im);applyFilter(im,look);
   let c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').putImageData(im,0,0);
   if(rot){const r=document.createElement('canvas'),o=rot%180;r.width=o?c.height:c.width;r.height=o?c.width:c.height;const x=r.getContext('2d');x.translate(r.width/2,r.height/2);x.rotate(rot*Math.PI/180);x.drawImage(c,-c.width/2,-c.height/2);c=r}
   return c;
@@ -1948,7 +1950,7 @@ function previewScan(p,q,look,rot,maxSide){
 async function makeScanPage(src){const full=downscale(src,5000);const blob=await new Promise(r=>full.toBlob(r,'image/jpeg',.95));return{id:uid++,blob,c:downscale(full,1600),rot:0,filter:'auto',...(SC.mode==='receipt'?{straight:false,clean:false}:{})}}
 async function fullCanvas(p){if(!p.blob)return p.c;const bmp=await createImageBitmap(p.blob);const c=document.createElement('canvas');c.width=bmp.width;c.height=bmp.height;c.getContext('2d').drawImage(bmp,0,0);try{bmp.close()}catch(e){}return c}
 async function processScan(p,look){
-  await tick();const full=await fullCanvas(p),k=full.width/p.c.width;let im=warp(full,p.q.map(([x,y])=>[x*k,y*k]));im=straighten(im,p);if(p.clean!==false)try{cleanEdges(im)}catch(e){}if((look||p.filter)!=='orig')sharpen(im);applyFilter(im,look||p.filter);
+  await tick();const full=await fullCanvas(p),k=full.width/p.c.width;let im=warp(full,p.q.map(([x,y])=>[x*k,y*k]));im=straighten(im,p);if(scClean(p))try{cleanEdges(im)}catch(e){}if((look||p.filter)!=='orig')sharpen(im);applyFilter(im,look||p.filter);
   let c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').putImageData(im,0,0);
   if(p.rot){const r=document.createElement('canvas'),q=p.rot%180;r.width=q?c.height:c.width;r.height=q?c.width:c.height;const x=r.getContext('2d');x.translate(r.width/2,r.height/2);x.rotate(p.rot*Math.PI/180);x.drawImage(c,-c.width/2,-c.height/2);c=r}
   const url=c.toDataURL('image/jpeg',.92);if(look)return url;p.out=url;p.ow=c.width;p.oh=c.height;
@@ -1964,7 +1966,7 @@ $('#scEdit').onclick=()=>openScanSave('edit');
 
 /* --- crop editor --- */
 let CR={s:1,ox:0,oy:0};
-function openCrop(i){const p=SC.pages[i];SC.edit=i;SC.straight=p.straight!==false;SC.clean=p.clean!==false;SC.view='corners';SC.pv=null;SC.q=p.q.map(x=>[...x]);SC.rot=p.rot;SC.filter=p.filter;$('#crop').classList.add('on');renderFilters();requestAnimationFrame(drawCrop)}
+function openCrop(i){const p=SC.pages[i];SC.edit=i;SC.straight=scStraight(p);SC.clean=scClean(p);SC.view='corners';SC.pv=null;SC.q=p.q.map(x=>[...x]);SC.rot=p.rot;SC.filter=p.filter;$('#crop').classList.add('on');renderFilters();requestAnimationFrame(drawCrop)}
 function setCropView(v){SC.view=v;$('#crTitle').textContent=v==='preview'?'Preview · tap to adjust corners':'Adjust corners';
   if(v==='preview'){const p=SC.pages[SC.edit];setTimeout(()=>{try{SC.pv=previewScan(p,SC.q,SC.filter,SC.rot)}catch(e){SC.pv=null}drawCrop()},10)}else drawCrop()}
 function renderFilters(){$('#crFilters').innerHTML=FILTERS.map(([k,l])=>`<button data-f="${k}" class="${SC.filter===k?'on':''}">${l}</button>`).join('')+`<button data-st="1" class="${SC.straight?'on':''}">Straighten text: ${SC.straight?'On':'Off'}</button><button data-ce="1" class="${SC.clean?'on':''}">Clean edges: ${SC.clean?'On':'Off'}</button>`;$('#crRot').textContent=SC.rot?`Rotated ${SC.rot}°`:''}
@@ -2423,6 +2425,8 @@ function openScanSave(mode){
    <p class="small" style="margin:12px 0 6px">File size</p>
    <div class="chips" id="ssQ" style="padding:0;flex-wrap:wrap">${[['small','Small'],['std','Standard'],['high','High']].map(([k,l])=>`<button data-q="${k}" class="btn" style="height:36px">${l}</button>`).join('')}</div>
    <p class="small" id="ssQL" style="margin:6px 0 0"></p><p class="small" style="margin:2px 0 0;opacity:.75">Sizes are estimates for these pages in the look shown.</p>
+   <p class="small" style="margin:12px 0 6px">Clean-up${SC.pages.length>1?' · all pages':''}</p>
+   <div class="chips" id="ssFix" style="padding:0;flex-wrap:wrap"><button data-fx="straight" class="btn" style="height:36px"></button><button data-fx="clean" class="btn" style="height:36px"></button></div>
    <p class="small" style="margin:12px 0 6px">Look</p>
    <div class="chips" id="ssLook" style="padding:0;flex-wrap:wrap">${[['keep','As shown'],['auto','Colour'],['gray','Grayscale'],['bw','Black & white']].map(([k,l])=>`<button data-l="${k}" class="btn" style="height:36px">${l}</button>`).join('')}</div>
    <div id="ssPrevBox" style="margin-top:12px;background:#eef0f3;border-radius:12px;height:230px;display:grid;place-items:center;overflow:hidden;cursor:zoom-in;position:relative"><img id="ssPrev" alt="Preview" style="max-width:100%;max-height:220px;box-shadow:0 2px 10px rgba(0,0,0,.2)"><span style="position:absolute;right:8px;bottom:8px;background:rgba(21,24,29,.75);color:#fff;font-size:12px;padding:5px 10px;border-radius:14px;display:flex;align-items:center;gap:5px">${icon('plus')}Tap to zoom</span></div>
@@ -2458,6 +2462,12 @@ function openScanSave(mode){
     img.style.opacity=.4;setTimeout(()=>{try{pvc[look]=previewScan(p,p.q,look,p.rot,900).toDataURL('image/jpeg',.85);if(look===cur)img.src=pvc[look]}catch(e){}img.style.opacity=1},10)};
   let cur=look;
   m.querySelectorAll('#ssLook button').forEach(b=>b.onclick=()=>{look=cur=b.dataset.l;tg();showPv()});showPv();
+  // straighten / clean edges for every page at once
+  const fxOn=k=>SC.pages.every(p=>k==='straight'?scStraight(p):scClean(p));
+  const tfx=()=>m.querySelectorAll('#ssFix button').forEach(b=>{const on=fxOn(b.dataset.fx);b.textContent=(b.dataset.fx==='straight'?'Straighten text: ':'Clean edges: ')+(on?'On':'Off');b.style.background=on?'var(--acc)':'#fff';b.style.color=on?'#fff':'';b.style.borderColor=on?'var(--acc)':''});tfx();
+  m.querySelectorAll('#ssFix button').forEach(b=>b.onclick=async()=>{const k=b.dataset.fx,v=!fxOn(k);lsSet('foliotest.sc.'+k,v?'1':'0');
+    for(let i=0;i<SC.pages.length;i++){busy(SC.pages.length>1?`Updating page ${i+1} of ${SC.pages.length}…`:'Updating the page…');SC.pages[i][k]=v;try{await processScan(SC.pages[i])}catch(e){console.warn(e)}}
+    unbusy();for(const x in pvc)delete pvc[x];tfx();showPv();try{renderScan()}catch(e){}});
   $('#ssPrevBox').onclick=async()=>{const lk=look;viewImages([],'Preview · '+({keep:'As shown',auto:'Colour',gray:'Grayscale',bw:'Black & white'}[lk]||''));
     const urls=[];for(const p of SC.pages){urls.push(lk==='keep'?p.out:previewScan(p,p.q,lk,p.rot,2200).toDataURL('image/jpeg',.9));await tick()}
     if($('#rv').classList.contains('on'))viewImages(urls,'Preview · '+({keep:'As shown',auto:'Colour',gray:'Grayscale',bw:'Black & white'}[lk]||''))};
