@@ -416,7 +416,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 90<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 91<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -2244,14 +2244,20 @@ async function reloadSource(src,bytes){
 
 /* ---------------- live auto-scan ---------------- */
 const LV={stream:null,timer:null,prev:null,q:null,stable:0,armed:true,auto:true,busy:false,ref:null,hold:+(lsGet('foliotest.hold')||2.5),capAt:0};
-const needFrames=()=>3; // just long enough to avoid a blurry shot
-const lvSmall=document.createElement('canvas');
+const needFrames=()=>4; // steady for about 0.7 s, and sharp (see LV.focused)
+const lvSmall=document.createElement('canvas'),lvSharpC=document.createElement('canvas');
+/* sharpness of the middle of the page in the live picture: rises as the camera focuses */
+function lvSharp(v,q){const xs=q.map(p=>p[0]),ys=q.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+  const W=v.videoWidth,H=v.videoHeight,cw=(x1-x0)*W*.5,ch=(y1-y0)*H*.5,cx=(x0+x1)/2*W,cy=(y0+y1)/2*H,S=Math.min(360,Math.max(1,Math.round(Math.min(cw,ch))));
+  lvSharpC.width=lvSharpC.height=S;const x=lvSharpC.getContext('2d',{willReadFrequently:true});x.drawImage(v,cx-cw/2,cy-ch/2,cw,ch,0,0,S,S);
+  const d=x.getImageData(0,0,S,S).data;let e=0,n=0;for(let yy=1;yy<S-1;yy+=2)for(let xx=1;xx<S-1;xx+=2){const i=(yy*S+xx)*4,g=d[i+1],l=Math.abs(4*g-d[i-3]-d[i+5]-d[i-S*4+1]-d[i+S*4+1]);e+=l;n++}return n?e/n:0}
 async function openLive(){
   if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast("Live camera isn't available here. Use Camera instead: pages still get cropped and cleaned automatically.",5000);return}
   toast('Starting camera…',2000);try{LV.stream=await Promise.race([navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:4096},height:{ideal:3072}},audio:false}),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),9000))])}
   catch(e){toast("The live camera is blocked here. Use Camera instead: pages still get cropped and cleaned automatically.",5000);return}
+  try{const tr=LV.stream.getVideoTracks()[0],cap=tr.getCapabilities?tr.getCapabilities():{};if(cap.focusMode&&cap.focusMode.includes('continuous'))await tr.applyConstraints({advanced:[{focusMode:'continuous'}]})}catch(e){}
   const v=$('#lvVid');v.srcObject=LV.stream;try{await v.play()}catch(e){}
-  Object.assign(LV,{prev:null,q:null,stable:0,armed:true,busy:false,ref:null});
+  Object.assign(LV,{prev:null,q:null,stable:0,armed:true,busy:false,ref:null,sh:[],focused:false});
   $('#live').classList.add('on');updLiveUI();LV.timer=setInterval(liveTick,170);
 }
 function closeLive(){clearInterval(LV.timer);if(LV.stream)LV.stream.getTracks().forEach(t=>t.stop());LV.stream=null;$('#lvVid').srcObject=null;$('#live').classList.remove('on');renderScan()}
@@ -2267,8 +2273,12 @@ function liveTick(){
   if(!LV.armed&&LV.ref&&Date.now()-LV.capAt>1800){const g=grayThumb(lvSmall);let df=0;for(let i=0;i<576;i++)df+=Math.abs(g[i]-LV.ref[i]);if(df/576>16){LV.armed=true;LV.stable=0}}
   if(nq&&LV.prev){const d=Math.max(...nq.map((p,i)=>Math.hypot(p[0]-LV.prev[i][0],p[1]-LV.prev[i][1])));if(d<.018&&!LV.unsettled)LV.stable++;else if(d<.018){LV.stable=0}else{LV.stable=0;if(d>.1&&Date.now()-LV.capAt>1800)LV.armed=true}}
   else{LV.stable=0;if(!nq&&Date.now()-LV.capAt>1800)LV.armed=true}
-  LV.hits=nq?(LV.hits||0)+1:0;LV.prev=nq;LV.q=LV.hits>=3?nq:null;drawLive();
-  if(LV.auto&&LV.q&&LV.armed&&LV.stable>=needFrames()&&(LV.calm||0)>=3)liveCapture();
+  LV.hits=nq?(LV.hits||0)+1:0;LV.prev=nq;LV.q=LV.hits>=3?nq:null;
+  // focus: wait until sharpness stops climbing and is near the best seen while held still
+  if(LV.q&&LV.stable>0){const sv=lvSharp(v,LV.q);LV.sh=(LV.sh||[]).concat(sv).slice(-10);const best=Math.max(...LV.sh);const pv=LV.sh[LV.sh.length-2]||0;LV.focused=LV.sh.length>=3&&sv>=best*.9&&sv<=pv*1.08&&sv>=pv*.92}
+  else{LV.sh=[];LV.focused=false}
+  drawLive();
+  if(LV.auto&&LV.q&&LV.armed&&LV.stable>=needFrames()&&LV.focused&&(LV.calm||0)>=3)liveCapture();
 }
 function drawLive(){
   const cv=$('#lvCv'),v=$('#lvVid'),r=cv.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);
@@ -2280,7 +2290,7 @@ function drawLive(){
   const P=LV.q.map(p=>[ox+p[0]*w,oy+p[1]*h]);const prog=Math.min(1,LV.stable/needFrames());
   x.beginPath();P.forEach((p,i)=>i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]));x.closePath();
   x.fillStyle=LV.armed?withA(SACC(),.12+prog*.3):'rgba(255,255,255,.08)';x.fill();x.lineWidth=3;x.strokeStyle=LV.armed?SACC():'#9ca3af';x.stroke();
-  msg.textContent=!LV.armed?'Captured ✓  Turn to the next page':LV.auto?(prog<1?'Hold still…':'Capturing…'):'Tap the button to capture';
+  msg.textContent=!LV.armed?'Captured ✓  Turn to the next page':LV.auto?(prog<1?'Hold still…':LV.focused?'Capturing…':'Hold still… focusing'):'Tap the button to capture';
 }
 async function liveCapture(){
   const v=$('#lvVid');if(LV.busy||!v.videoWidth)return;LV.busy=true;
@@ -2309,8 +2319,19 @@ function loadTess(){if(window.Tesseract)return Promise.resolve();if(!tessP)tessP
 async function ocrWorker(onProg,receipt){await loadTess();const w=await Tesseract.createWorker(REGION.lang||'eng',1,{logger:m=>{if(m.status==='recognizing text'&&onProg)onProg(m.progress||0)}});
   if(receipt)try{await w.setParameters({tessedit_pageseg_mode:'6'})}catch(e){console.warn(e)}return w}
 function imgFrom(url){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url})}
+const ocrMax=(w,h)=>Math.round(Math.max(w,h)*Math.min(1,Math.sqrt(4.5e6/(w*h)),4200/Math.max(w,h)));
+function wordLines(ws){ws=ws.map(w=>({...w,yc:(w.y0+w.y1)/2,h:w.y1-w.y0})).sort((a,b)=>a.yc-b.yc);
+  const lines=[];for(const w of ws){const L=lines.find(l=>Math.abs(l.yc-w.yc)<Math.max(l.h,w.h)*.55);if(L){L.ws.push(w);L.yc=(L.yc+w.yc)/2}else lines.push({yc:w.yc,h:w.h,ws:[w]})}
+  return lines.map(l=>l.ws.sort((a,b)=>a.x0-b.x0).map(w=>w.t).join(' ')).join('\n')}
+/* how well a reading of a receipt hangs together: subtotal + tax (+ tip) = total scores highest */
+function rcScore(ws){const r=readReceipt(wordLines(ws)),n=['vendor','date','subtotal','tax','total'].filter(k=>r[k]).length,t=+r.total,st=+r.subtotal,tx=+r.tax;
+  const ok=!!(r.total&&r.subtotal&&r.tax&&Math.abs(st+tx-t)<=.03);return{s:n+(ok?5:0),ok}}
+/* receipts: read line by line first; if the numbers don't add up, read again with automatic layout and keep the better one */
+async function ocrReceipt(worker,c){const w1=await ocrCanvas(worker,c),s1=rcScore(w1);if(s1.ok)return w1;
+  try{await worker.setParameters({tessedit_pageseg_mode:'3'});const w2=await ocrCanvas(worker,c);return rcScore(w2).s>s1.s?w2:w1}
+  catch(e){console.warn(e);return w1}finally{try{await worker.setParameters({tessedit_pageseg_mode:'6'})}catch(e){}}}
 async function ocrCanvas(worker,c){
-  const s=Math.min(1,2600/Math.max(c.width,c.height));const src=s<1?downscale(c,2600):c;
+  const m=ocrMax(c.width,c.height);const src=m<Math.max(c.width,c.height)?downscale(c,m):c;
   const{data}=await worker.recognize(src);
   return(data.words||[]).filter(w=>w.text&&w.text.trim()&&w.confidence>25).map(w=>({t:w.text.trim(),x0:w.bbox.x0/src.width,y0:w.bbox.y0/src.height,x1:w.bbox.x1/src.width,y1:w.bbox.y1/src.height}));
 }
@@ -2456,10 +2477,10 @@ async function reviewReceipts(ids){
 async function buildScanPdf(look,ocr,qual,P){
   P=P||SC.pages;const n=P.length,outs=[];
   for(let i=0;i<n;i++){const p=P[i];if(look==='keep'||look===p.filter)outs.push(p.out);else{busy(`Preparing page ${i+1} of ${n}…`);await tick();outs.push(await processScan(p,look))}}
-  let words=null,worker=null;
-  if(ocr){busy('Loading the text reader…');try{worker=await ocrWorker(pr=>{$('#busyMsg').textContent=`Reading text on page ${cur} of ${n}… ${Math.round(pr*100)}%`},SC.mode==='receipt'||SC.forReceipt)}catch(e){toast("The text reader couldn't load, so the PDF was saved without editable text.",5000)}}
+  let words=null,worker=null;const rcOcr=SC.mode==='receipt'||!!SC.forReceipt;
+  if(ocr){busy('Loading the text reader…');try{worker=await ocrWorker(pr=>{$('#busyMsg').textContent=`Reading text on page ${cur} of ${n}… ${Math.round(pr*100)}%`},rcOcr)}catch(e){toast("The text reader couldn't load, so the PDF was saved without editable text.",5000)}}
   let cur=0;
-  if(worker){words=[];try{for(let i=0;i<n;i++){cur=i+1;$('#busyMsg').textContent=`Reading text on page ${cur} of ${n}…`;const im=await imgFrom(outs[i]);const c=downscale(im,2600);words.push(await ocrCanvas(worker,c))}}catch(e){console.error(e);words=null;toast('Text recognition failed. Saved without editable text.',4500)}try{await worker.terminate()}catch(e){}}
+  if(worker){words=[];try{for(let i=0;i<n;i++){cur=i+1;$('#busyMsg').textContent=`Reading text on page ${cur} of ${n}…`;const im=await imgFrom(outs[i]);const c=downscale(im,ocrMax(im.naturalWidth||im.width,im.naturalHeight||im.height));words.push(await(rcOcr?ocrReceipt(worker,c):ocrCanvas(worker,c)))}}catch(e){console.error(e);words=null;toast('Text recognition failed. Saved without editable text.',4500)}try{await worker.terminate()}catch(e){}}
   const QS={small:[2.2,.75],std:[5,.82],high:[0,.9]}[qual||'std']||[5,.82];   // megapixels, JPEG quality
   if(QS[0]){for(let i=0;i<n;i++){busy(`Optimising page ${i+1} of ${n}…`);await tick();const im=await imgFrom(outs[i]);const c=downscaleArea(im,QS[0]);outs[i]=c.toDataURL('image/jpeg',QS[1])}}
   busy('Building PDF…');await tick();
@@ -3012,12 +3033,10 @@ async function ocrDocText(d,onProg){
   const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await d.blob.arrayBuffer()),isEvalSupported:false}).promise;
   const worker=await ocrWorker(onProg,true);let out='';
   try{for(let i=1;i<=Math.min(pdf.numPages,3);i++){
-    const pg=await pdf.getPage(i),v1=pg.getViewport({scale:1}),vp=pg.getViewport({scale:Math.min(4,2400/Math.max(v1.width,v1.height))});
+    const pg=await pdf.getPage(i),v1=pg.getViewport({scale:1}),vp=pg.getViewport({scale:Math.min(4,Math.sqrt(4.5e6/(v1.width*v1.height)),4200/Math.max(v1.width,v1.height))});
     const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
     await pg.render({canvasContext:x,viewport:vp}).promise;
-    const ws=await ocrCanvas(worker,c);ws.forEach(w=>{w.yc=(w.y0+w.y1)/2;w.h=w.y1-w.y0});ws.sort((a,b)=>a.yc-b.yc);
-    const lines=[];for(const w of ws){const L=lines.find(l=>Math.abs(l.yc-w.yc)<Math.max(l.h,w.h)*.55);if(L){L.ws.push(w);L.yc=(L.yc+w.yc)/2}else lines.push({yc:w.yc,h:w.h,ws:[w]})}
-    out+=lines.map(l=>l.ws.sort((a,b)=>a.x0-b.x0).map(w=>w.t).join(' ')).join('\n')+'\n'}}
+    out+=wordLines(await ocrReceipt(worker,c))+'\n'}}
   finally{try{await worker.terminate()}catch(e){}try{pdf.destroy()}catch(e){}}
   return out.trim();
 }
