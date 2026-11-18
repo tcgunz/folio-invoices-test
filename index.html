@@ -3831,9 +3831,9 @@ function mioRender(){ivLoad();ivIncLoad();const FS=mioFolders();MIO.rc=MIO.all.f
 }
 /* every line behind the totals, for the export */
 function mioData(year){ivLoad();ivIncLoad();const FS=mioFolders();const rc=MIO.all.filter(d=>!FS||FS.includes(d.folder||'Library'));
-  const ins=[];IV.list.forEach(v=>{if(v.void||!v.paid)return;const d=v.paidOn||v.date;if(!String(d).startsWith(year))return;const t=ivTotals(v);ins.push({d,type:'Invoice',ref:v.no,who:ivWho(v),what:'',how:'',amt:t.total,tax:t.tax,proof:''})});
-  IV.inc.forEach(x=>{if(!String(x.date).startsWith(year))return;ins.push({d:x.date,type:'Income',ref:x.rcptNo||'',who:x.from||'',what:x.desc||'',how:x.method||'',amt:ivAmt(x),tax:ivTaxOf(x),proof:x.docId?'Yes':''})});
-  const outs=rc.filter(doc=>String(doc.receipt.date).startsWith(year)).map(doc=>({d:doc.receipt.date,who:doc.receipt.vendor||doc.name||'',cat:doc.receipt.category||'',folder:doc.folder||'Library',amt:rcCharged(doc.receipt),tax:ivN(doc.receipt.tax)}));
+  const ins=[];IV.list.forEach(v=>{if(v.void||!v.paid)return;const d=v.paidOn||v.date;if(!String(d).startsWith(year))return;const t=ivTotals(v);ins.push({d,type:'Invoice',ref:v.no,who:ivWho(v),what:'',how:'',amt:t.total,tax:t.tax,proof:'',src:v})});
+  IV.inc.forEach(x=>{if(!String(x.date).startsWith(year))return;ins.push({d:x.date,type:'Income',ref:x.rcptNo||'',who:x.from||'',what:x.desc||'',how:x.method||'',amt:ivAmt(x),tax:ivTaxOf(x),proof:x.docId?'Yes':'',src:x})});
+  const outs=rc.filter(doc=>String(doc.receipt.date).startsWith(year)).map(doc=>({d:doc.receipt.date,who:doc.receipt.vendor||doc.name||'',cat:doc.receipt.category||'',folder:doc.folder||'Library',amt:rcCharged(doc.receipt),tax:ivN(doc.receipt.tax),doc}));
   ins.sort((a,b)=>a.d.localeCompare(b.d));outs.sort((a,b)=>a.d.localeCompare(b.d));
   const M=[];for(let m=1;m<=12;m++){const k=year+'-'+String(m).padStart(2,'0');M.push({k,in:0,out:0,tin:0,tout:0})}
   ins.forEach(r=>{const x=M.find(z=>r.d.startsWith(z.k));if(x){x.in+=r.amt;x.tin+=r.tax}});outs.forEach(r=>{const x=M.find(z=>r.d.startsWith(z.k));if(x){x.out+=r.amt;x.tout+=r.tax}});
@@ -3842,9 +3842,10 @@ function mioExport(){const y=MIO.year;const D=mioData(y);if(!D.ins.length&&!D.ou
   openModal(`<h3>Export money in vs out · ${esc(y)}</h3><p class="small" style="margin-top:-6px">For your accountant or your own records. Both open in Excel and Google Sheets.</p>
    <button class="big" id="mxX"><span class="ic mio" data-i="grid"></span><span><b>Excel (.xlsx) · recommended</b><small>Summary by month, plus every payment in and every receipt out</small></span></button>
    <button class="big" id="mxC"><span class="ic mio" data-i="list"></span><span><b>CSV</b><small>One list of everything in and out, for other software</small></span></button>
+   ${zOptHTML('mxF',lsGet('foliotest.mxf')==='1','Include all the files','Makes a .zip with the spreadsheet plus Invoices, Income proof and Receipts folders, each sorted by month. Each row links to its file. Good for sending everything to your accountant at once.')}
    <div class="btns"><button class="btn" data-x>Cancel</button></div>`);
-  $('#mxX').onclick=()=>{closeModal();mioXlsx(y,D)};$('#mxC').onclick=()=>{closeModal();mioCsv(y,D)}}
-function mioXlsx(y,D){const C=REGION.cur,TX=REGION.tax||'Tax',money=x=>({v:Math.round(x*100)/100,t:'n',s:1}),bm=x=>({v:Math.round(x*100)/100,t:'n',s:3}),B=s=>({v:s,t:'s',s:2}),dt=d=>d?{v:d,t:'d'}:'';
+  $('#mxX').onclick=()=>{const fl=$('#mxF').checked;lsSet('foliotest.mxf',fl?'1':'0');closeModal();mioXlsx(y,D,{files:fl})};$('#mxC').onclick=()=>{closeModal();mioCsv(y,D)}}
+async function mioXlsx(y,D,opts){opts=opts||{};const plan=opts.files?zPlan(await zHave()):null;const C=REGION.cur,TX=REGION.tax||'Tax',money=x=>({v:Math.round(x*100)/100,t:'n',s:1}),bm=x=>({v:Math.round(x*100)/100,t:'n',s:3}),B=s=>({v:s,t:'s',s:2}),dt=d=>d?{v:d,t:'d'}:'';
   const mn=k=>{try{return new Date(k+'-15T12:00:00').toLocaleDateString('en-CA',{month:'long'})}catch(e){return k}};
   const S=[['Month',`Money in (${C})`,`Money out (${C})`,`Profit (${C})`,`${TX} collected (${C})`,`${TX} paid (${C})`,`${TX} difference (${C})`].map(B)];let T={in:0,out:0,tin:0,tout:0};
   D.M.forEach(x=>{S.push([mn(x.k),money(x.in),money(x.out),money(x.in-x.out),money(x.tin),money(x.tout),money(x.tin-x.tout)]);T.in+=x.in;T.out+=x.out;T.tin+=x.tin;T.tout+=x.tout});
@@ -3852,12 +3853,15 @@ function mioXlsx(y,D){const C=REGION.cur,TX=REGION.tax||'Tax',money=x=>({v:Math.
   S.push(['Money in: paid invoices (by the date paid) and recorded income.']);
   S.push(['Money out: receipts'+(D.folders?' in these folders: '+D.folders.join(', '):' in all folders')+', including tips.']);
   S.push([`${TX} figures are an estimate for your records, not for filing. Check with your accountant.`]);
-  const I=[['Date','Type','Number','From / client','What for','Paid by',`Amount (${C})`,`${TX} (${C})`,'Proof attached'].map(B)];D.ins.forEach(r=>I.push([dt(r.d),r.type,r.ref,r.who,r.what,r.how,money(r.amt),money(r.tax),r.proof]));
+  const inFile=r=>{if(!plan)return r.proof;const pth=r.type==='Invoice'?plan.invoice(r.src):plan.proof(r.src);return pth?zLink(pth):(r.type==='Income'?'No proof attached':'')};
+  const I=[['Date','Type','Number','From / client','What for','Paid by',`Amount (${C})`,`${TX} (${C})`,plan?'File':'Proof attached'].map(B)];D.ins.forEach(r=>I.push([dt(r.d),r.type,r.ref,r.who,r.what,r.how,money(r.amt),money(r.tax),inFile(r)]));
   I.push([B('Total'),'','','','','',bm(D.ins.reduce((a,r)=>a+r.amt,0)),bm(D.ins.reduce((a,r)=>a+r.tax,0))]);
-  const O=[['Date','Store / vendor','Category','Folder',`Amount (${C})`,`${TX} (${C})`].map(B)];D.outs.forEach(r=>O.push([dt(r.d),r.who,r.cat,r.folder,money(r.amt),money(r.tax)]));
+  const O=[['Date','Store / vendor','Category','Folder',`Amount (${C})`,`${TX} (${C})`,...(plan?['Receipt file']:[])].map(B)];D.outs.forEach(r=>O.push([dt(r.d),r.who,r.cat,r.folder,money(r.amt),money(r.tax),...(plan?[zLink(plan.receipt(r.doc))]:[])]));
   O.push([B('Total'),'','','',bm(D.outs.reduce((a,r)=>a+r.amt,0)),bm(D.outs.reduce((a,r)=>a+r.tax,0))]);
-  const sheets=[{name:'Summary '+y,cols:[14,16,16,16,18,16,18],rows:S},{name:'Money in',freeze:true,cols:[12,10,11,26,26,16,14,12,10],rows:I},{name:'Money out',freeze:true,cols:[12,28,18,20,14,12],rows:O}];
-  try{const bytes=buildXlsx(sheets);readyShare([{name:`Money in vs out ${y}.xlsx`,bytes,type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}],'Money in vs out '+y)}catch(e){console.error(e);toast('Could not make the spreadsheet')}}
+  const sheets=[{name:'Summary '+y,cols:[14,16,16,16,18,16,18],rows:S},{name:'Money in',freeze:true,cols:[12,10,11,26,26,16,14,12,plan?44:10],rows:I},{name:'Money out',freeze:true,cols:[12,28,18,20,14,12,44],rows:O}];
+  let bytes;try{bytes=buildXlsx(sheets)}catch(e){console.error(e);toast('Could not make the spreadsheet');return}
+  if(!plan){readyShare([{name:`Money in vs out ${y}.xlsx`,bytes,type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}],'Money in vs out '+y);return}
+  zPack(`Money in vs out ${y}`,bytes,plan).then(r=>{if(r.missing)toast(`${r.missing} file${r.missing>1?'s were':' was'} missing. See "Missing files.txt" in the .zip`,5000)}).catch(e=>{console.error(e);unbusy();toast("Couldn't pack the files")})}
 function mioCsv(y,D){const q=s=>{s=String(s==null?'':s);return/[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
   const L=[['In or out','Date','Type','Number','From / store','What for / category','Paid by / folder','Amount',(REGION.tax||'Tax')].join(',')];
   D.ins.forEach(r=>L.push(['In',r.d,r.type,r.ref,r.who,r.what,r.how,r.amt.toFixed(2),r.tax.toFixed(2)].map(q).join(',')));
@@ -3866,6 +3870,29 @@ function mioCsv(y,D){const q=s=>{s=String(s==null?'':s);return/[",\n]/.test(s)?'
 $('#mioExp').onclick=mioExport;
 $('#mioBack').onclick=()=>$('#mio').classList.remove('on');
 
+/* ---- files that go into a .zip export with the spreadsheet: invoice PDFs, income proof and receipts, a folder per month ---- */
+const zSafe=t=>String(t||'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,60);
+const zMonth=d=>/^\d{4}-\d{2}/.test(d||'')?d.slice(0,7)+' '+new Date(+d.slice(0,4),+d.slice(5,7)-1,1).toLocaleDateString('en-CA',{month:'long'}):'No date';
+/* a spreadsheet cell that opens the file from the unzipped folder */
+const zLink=path=>path==='missing'?'Proof file no longer in Library':path?{v:`HYPERLINK("${path.replace(/"/g,'')}","${path.split('/').pop().replace(/"/g,'')}")`,t:'f',c:path.split('/').pop(),s:6}:'';
+/* ids of everything in the Library, so a deleted proof is marked in the sheet instead of linking to nothing */
+const zHave=async()=>new Set(await ltx('docs','readonly',s=>s.getAllKeys()));
+function zPlan(have){const used=new Set(),jobs=[];
+  const add=(path,get)=>{let q=path,i=2;while(used.has(q.toLowerCase()))q=path.replace(/\.pdf$/i,` (${i++}).pdf`);used.add(q.toLowerCase());jobs.push({path:q,get});return q};
+  return{jobs,
+    invoice:v=>add(`Invoices/${zMonth(v.date)}/Invoice ${zSafe(v.no)} ${v.date||'no date'} ${zSafe(ivWho(v)||'no client')}${v.void?' (void)':''}.pdf`,()=>ivPdf(v)),
+    proof:x=>!x.docId?'':have&&!have.has(x.docId)?'missing':add(`Income proof/${zMonth(x.date)}/${x.date||'no date'} ${zSafe(x.from||'payment')} ${ivAmt(x).toFixed(2)}.pdf`,async()=>{const d=await libGet(x.docId);return d&&d.blob?new Uint8Array(await d.blob.arrayBuffer()):null}),
+    receipt:d=>{const r=d.receipt||{};return add(`Receipts/${zMonth(r.date)}/${r.date||'no date'} ${zSafe(r.vendor||d.name)}.pdf`,async()=>d.blob?new Uint8Array(await d.blob.arrayBuffer()):null)}}}
+/* pack the spreadsheet and every planned file; files that have gone missing are listed in a note instead */
+async function zPack(base,xbytes,plan){const files=[{name:base+'.xlsx',data:xbytes}],missing=[];let i=0;
+  for(const j of plan.jobs){i++;busy(`Adding files… ${i} of ${plan.jobs.length}`);await tick();
+    let b=null;try{b=await j.get()}catch(e){console.error(e)}if(b&&b.length)files.push({name:j.path,data:b instanceof Uint8Array?b:new Uint8Array(b)});else missing.push(j.path)}
+  if(missing.length)files.push({name:'Missing files.txt',data:new TextEncoder().encode('These files were no longer in the Folio Library when this was exported:\r\n\r\n'+missing.join('\r\n'))});
+  busy('Making the .zip…');await tick();const z=makeZip(files);unbusy();
+  readyShare([{name:base+'.zip',bytes:z,type:'application/zip'}],base);
+  return{count:files.length-1-(missing.length?1:0),missing:missing.length}}
+const zOptHTML=(id,on,label,note)=>`<p class="small" style="margin:14px 0 4px"><b>Excel option</b></p><label class="row" style="gap:10px;margin:6px 0;align-items:flex-start"><input type="checkbox" id="${id}" ${on?'checked':''} style="width:18px;height:18px;margin-top:2px;accent-color:var(--acc)"><span>${label}<br><span class="small">${note}</span></span></label>`;
+
 /* ---- export: invoices and other income ---- */
 function ivExportModal(){ivLoad();ivIncLoad();const total=ivAll().length;if(!total){closeModal();toast('Nothing to export yet');return}
   const vis=ivVisible(),narrowed=IV.month!=='all'||IV.filter!=='all'||IV.q.trim();
@@ -3873,9 +3900,10 @@ function ivExportModal(){ivLoad();ivIncLoad();const total=ivAll().length;if(!tot
    ${narrowed?`<div class="fld"><label>Include</label><select id="exScope" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit"><option value="view">What's on screen now (${vis.length})</option><option value="all">Everything (${total})</option></select></div>`:''}
    <button class="big" id="exX"><span class="ic iv" data-i="grid"></span><span><b>Excel (.xlsx) · recommended</b><small>A sheet for each month, plus totals by month and by client</small></span></button>
    <button class="big" id="exC"><span class="ic iv" data-i="list"></span><span><b>CSV</b><small>One plain list with a Type and Month column, for other software</small></span></button>
+   ${zOptHTML('exIvF',lsGet('foliotest.ivxf')==='1','Include the invoice and proof files','Makes a .zip with the spreadsheet, an Invoices folder and an Income proof folder (cheques, deposit slips, e-transfers), each sorted by month. Each row links to its file.')}
    <div class="btns"><button class="btn" data-x>Cancel</button></div>`);
   const pick=()=>($('#exScope')&&$('#exScope').value==='view')?vis:ivAll();
-  $('#exX').onclick=()=>{const L=pick();closeModal();ivExportXlsx(L)};$('#exC').onclick=()=>{const L=pick();closeModal();ivExportCsv(L)}}
+  $('#exX').onclick=()=>{const L=pick(),fl=$('#exIvF').checked;lsSet('foliotest.ivxf',fl?'1':'0');closeModal();ivExportXlsx(L,{files:fl})};$('#exC').onclick=()=>{const L=pick();closeModal();ivExportCsv(L)}}
 const ivMonthName=m=>{try{return new Date(m+'-15T12:00:00').toLocaleDateString('en-CA',{month:'short',year:'numeric'})}catch(e){return m}};
 const ivSortNo=L=>L.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||ivNum(a.no)-ivNum(b.no));
 function ivExportCsv(L){L=ivSortNo(L||ivAll());
@@ -3884,14 +3912,16 @@ function ivExportCsv(L){L=ivSortNo(L||ivAll());
   const lines=[head.join(',')].concat(L.map(v=>{if(isInc(v)){const a=ivAmt(v),t=ivTaxOf(v);return['Income',String(v.date||'').slice(0,7),'',v.date,'',v.from,'',v.desc,(a-t).toFixed(2),t.toFixed(2),a.toFixed(2),'Received',v.date,v.method].map(q).join(',')}
     const t=ivTotals(v);return['Invoice',String(v.date||'').slice(0,7),v.no,v.date,v.due,v.client&&v.client.name,v.client&&v.client.email,'',t.sub.toFixed(2),t.tax.toFixed(2),t.total.toFixed(2),ivStLabel[ivStatus(v)],v.paid?(v.paidOn||''):'',''].map(q).join(',')}));
   readyShare([{name:'Invoices and income '+ivToday()+'.csv',bytes:new TextEncoder().encode('﻿'+lines.join('\r\n')),type:'text/csv'}],'Invoices and income')}
-function ivExportXlsx(L){L=ivSortNo(L||ivAll());if(!L.length){toast('Nothing to export');return}
+async function ivExportXlsx(L,opts){opts=opts||{};L=ivSortNo(L||ivAll());if(!L.length){toast('Nothing to export');return}
+  const plan=opts.files?zPlan(await zHave()):null,fOf={};if(plan)L.forEach(v=>{fOf[v.id]=isInc(v)?plan.proof(v):plan.invoice(v)});
+  const fc=v=>plan?[fOf[v.id]?zLink(fOf[v.id]):(isInc(v)?'No proof attached':'')]:[];
   const C=REGION.cur,TX=REGION.tax||'Tax',money=x=>({v:Math.round(x*100)/100,t:'n',s:1}),bm=x=>({v:Math.round(x*100)/100,t:'n',s:3}),B=s=>({v:s,t:'s',s:2}),dt=d=>d?{v:d,t:'d'}:'';
   const invs=L.filter(v=>!isInc(v)),incs=L.filter(isInc);
-  const HI=['Invoice','Date','Due','Client','Client email',`Subtotal (${C})`,`${TX} (${C})`,`Total (${C})`,'Status','Paid on'].map(B);
-  const HN=['Date','From','What for','Paid by',`Amount (${C})`,`${TX} included (${C})`,'Note'].map(B);
-  const invRows=list=>{const rows=[HI];let s=0,t=0,tot=0;list.forEach(v=>{const x=ivTotals(v);rows.push([v.no,dt(v.date),dt(v.due),v.client&&v.client.name||'',v.client&&v.client.email||'',money(x.sub),money(x.tax),money(x.total),ivStLabel[ivStatus(v)],v.paid?dt(v.paidOn):'']);if(!v.void){s+=x.sub;t+=x.tax;tot+=x.total}});
+  const HI=['Invoice','Date','Due','Client','Client email',`Subtotal (${C})`,`${TX} (${C})`,`Total (${C})`,'Status','Paid on',...(plan?['Invoice file']:[])].map(B);
+  const HN=['Date','From','What for','Paid by',`Amount (${C})`,`${TX} included (${C})`,'Note',...(plan?['Proof file']:[])].map(B);
+  const invRows=list=>{const rows=[HI];let s=0,t=0,tot=0;list.forEach(v=>{const x=ivTotals(v);rows.push([v.no,dt(v.date),dt(v.due),v.client&&v.client.name||'',v.client&&v.client.email||'',money(x.sub),money(x.tax),money(x.total),ivStLabel[ivStatus(v)],v.paid?dt(v.paidOn):'',...fc(v)]);if(!v.void){s+=x.sub;t+=x.tax;tot+=x.total}});
     rows.push([B('Total (not counting void)'),'','','','',bm(s),bm(t),bm(tot)]);return rows};
-  const incRows=list=>{const rows=[HN];let a=0,t=0;list.forEach(x=>{rows.push([dt(x.date),x.from||'',x.desc||'',x.method||'',money(ivAmt(x)),money(ivTaxOf(x)),x.note||'']);a+=ivAmt(x);t+=ivTaxOf(x)});rows.push([B('Total'),'','','',bm(a),bm(t)]);return rows};
+  const incRows=list=>{const rows=[HN];let a=0,t=0;list.forEach(x=>{rows.push([dt(x.date),x.from||'',x.desc||'',x.method||'',money(ivAmt(x)),money(ivTaxOf(x)),x.note||'',...fc(x)]);a+=ivAmt(x);t+=ivTaxOf(x)});rows.push([B('Total'),'','','',bm(a),bm(t)]);return rows};
   const months=[...new Set(L.map(v=>String(v.date||'').slice(0,7)))].sort();
   const sum=list=>{let n=0,b=0,tx=0,p=0,o=0,oi=0;list.forEach(v=>{if(isInc(v)){oi+=ivAmt(v);tx+=ivTaxOf(v);return}if(v.void)return;const x=ivTotals(v);n++;b+=x.total;tx+=x.tax;if(v.paid)p+=x.total;else o+=x.total});return{n,b,tx,p,o,oi}};
   const MR=[['Month','Invoices',`Invoiced (${C})`,`Paid invoices (${C})`,`Still owed (${C})`,`Other income (${C})`,`Total received (${C})`,`${TX} (${C})`].map(B)];
@@ -3900,13 +3930,14 @@ function ivExportXlsx(L){L=ivSortNo(L||ivAll());if(!L.length){toast('Nothing to 
   const by=new Map();L.forEach(v=>{if(!isInc(v)&&v.void)return;const k=(ivWho(v)||'Not named').trim(),a=ivAmt(v);const c=by.get(k.toLowerCase())||{name:k,n:0,b:0,p:0,o:0};c.n++;c.b+=a;if(isInc(v)||v.paid)c.p+=a;else c.o+=a;by.set(k.toLowerCase(),c)});
   const CR=[['Client / from','Items',`Total (${C})`,`Received (${C})`,`Still owed (${C})`].map(B)];[...by.values()].sort((a,b)=>b.o-a.o||b.b-a.b).forEach(c=>CR.push([c.name,c.n,money(c.b),money(c.p),money(c.o)]));
   const sheets=[{name:'By month',cols:[14,10,14,16,14,16,16,12],rows:MR},{name:'By client',cols:[28,8,14,14,14],rows:CR}];
-  if(invs.length)sheets.push({name:'All invoices',freeze:true,cols:[11,12,12,26,28,14,12,14,10,12],rows:invRows(invs)});
-  if(incs.length)sheets.push({name:'Other income',freeze:true,cols:[12,24,26,16,14,16,24],rows:incRows(incs)});
+  if(invs.length)sheets.push({name:'All invoices',freeze:true,cols:[11,12,12,26,28,14,12,14,10,12,44],rows:invRows(invs)});
+  if(incs.length)sheets.push({name:'Other income',freeze:true,cols:[12,24,26,16,14,16,24,44],rows:incRows(incs)});
   months.forEach(m=>{const mi=invs.filter(v=>String(v.date||'').slice(0,7)===m),mo=incs.filter(x=>String(x.date||'').slice(0,7)===m);let rows=[];
     if(mi.length)rows=rows.concat(invRows(mi));if(mo.length){if(rows.length)rows.push([],[B('Other income')]);rows=rows.concat(incRows(mo))}
-    sheets.push({name:/^\d{4}-\d{2}$/.test(m)?ivMonthName(m):'No date',cols:[12,12,22,26,28,14,14,14,10,12],rows})});
-  try{const bytes=buildXlsx(sheets);readyShare([{name:'Invoices and income '+ivToday()+'.xlsx',bytes,type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}],'Invoices and income')}
-  catch(e){console.error(e);toast('Could not make the spreadsheet')}}
+    sheets.push({name:/^\d{4}-\d{2}$/.test(m)?ivMonthName(m):'No date',cols:[12,12,22,26,28,14,14,14,10,12,44],rows})});
+  let bytes;try{bytes=buildXlsx(sheets)}catch(e){console.error(e);toast('Could not make the spreadsheet');return}
+  if(!plan){readyShare([{name:'Invoices and income '+ivToday()+'.xlsx',bytes,type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}],'Invoices and income');return}
+  zPack('Invoices and income '+ivToday(),bytes,plan).then(r=>{if(r.missing)toast(`${r.missing} file${r.missing>1?'s were':' was'} missing. See "Missing files.txt" in the .zip`,5000)}).catch(e=>{console.error(e);unbusy();toast("Couldn't pack the files")})}
 
 function ivClientsModal(){const c=ivClients().sort((a,b)=>a.name.localeCompare(b.name));
   openModal(`<h3>Saved clients</h3><p class="small" style="margin-top:-6px">Clients are saved automatically when you save an invoice. Start typing a name on an invoice to fill in their details.</p>
