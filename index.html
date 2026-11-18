@@ -421,7 +421,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 95<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 96<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -774,7 +774,7 @@ const S={sources:[],pages:[],scale:1,tool:'hand',sel:null,pending:null,undo:[],r
   colors:{text:'#111827',pen:'#1d4ed8',hl:'#fde047',shape:'#dc2626',mark:'#111827'},widths:{pen:2,shape:2},fontSize:14};
 const INK=['#111827','#1d4ed8','#dc2626','#15803d','#7c3aed','#ea580c'];
 const HLC=['#fde047','#86efac','#93c5fd','#f9a8d4','#fdba74'];
-const TOOLS=[['hand','Scroll'],['select','Select'],['rotpage','Rotate'],'|',['edittext','Edit text'],['text','Add text'],['image','Add image'],['sign','Sign'],'|',['pen','Draw'],['hl','Highlight'],['wo','White-out'],'|',['check','Check'],['cross','Cross'],'|',['rect','Box'],['ellipse','Circle'],['line','Line'],['arrow','Arrow'],'|',['wmark','Watermark']];
+const TOOLS=[['hand','Scroll'],['select','Select'],['rotpage','Rotate'],'|',['edittext','Text'],['image','Add image'],['sign','Sign'],'|',['pen','Draw'],['hl','Highlight'],['wo','White-out'],'|',['check','Check'],['cross','Cross'],'|',['rect','Box'],['ellipse','Circle'],['line','Line'],['arrow','Arrow'],'|',['wmark','Watermark']];
 const CKEY={text:'text',pen:'pen',hl:'hl',rect:'shape',ellipse:'shape',line:'shape',arrow:'shape',check:'mark',cross:'mark'};
 const getPg=id=>S.pages.find(p=>p.id===id);
 const rot=pg=>(pg.base+pg.extra)%360;
@@ -809,7 +809,7 @@ async function addSource(buf,name){
   }catch(e){}
   return src.pp.map((p,i)=>({id:uid++,src:src.id,idx:i,extra:0,base:p.rotate||0,annots:[]}));
 }
-function resetDoc(){S.dirty=false;S.libId=null;S.libFolder=null;S.sources=[];S.pages=[];S.undo=[];S.redo=[];S.imgs={};S.sel=null;imgEls.clear()}
+function resetDoc(){S.scanAsked=false;S.dirty=false;S.libId=null;S.libFolder=null;S.sources=[];S.pages=[];S.undo=[];S.redo=[];S.imgs={};S.sel=null;imgEls.clear()}
 async function openFiles(files,append){
   if(!files.length)return;
   busy('Opening…');await tick();
@@ -1028,6 +1028,7 @@ function onDown(ev,e){
       drag={mode:'resize',e,orig:JSON.parse(JSON.stringify(a)),c:vp.convertToPdfPoint(cx,cy),cs:[cx,cy],d0:Math.max(10,Math.hypot(sx-cx,sy-cy)),moved:false};return}}}
   if(t==='select'||t==='edittext'){
     const h=hitTest(e,pg,sx,sy);
+    if(h>=0&&t==='edittext'&&!ev._marq&&pg.annots[h].t==='text'){inlineText(e,pg,{i:h});return}
     if(h>=0&&t==='edittext'&&!ev._marq&&['tblock','edit'].includes(pg.annots[h].t)){editAnnot(e,pg,h);return}
     if(h>=0&&t==='select'){if(S.msel)setMsel(null);setSel({pid:pg.id,i:h});S.undo.push(JSON.stringify(S.pages));drag={mode:'move',e,last:[sx,sy],moved:false};return}
     if(S.sel&&ev.pointerType!=='touch')setSel(null);ensureText(e,pg);drag={mode:'marq',e,start:[sx,sy],end:[sx,sy]};drawOverlay(e);return}
@@ -1073,7 +1074,7 @@ function renderTools(){
   $('#tools').innerHTML=TOOLS.map(t=>t==='|'?'<span class="tsep"></span>':`<button data-t="${t[0]}" class="${S.tool===t[0]?'on':''}">${icon(t[0])}<span>${t[1]}</span></button>`).join('');
 }
 $('#tools').addEventListener('click',ev=>{const b=ev.target.closest('button[data-t]');if(b)setTool(b.dataset.t)});
-function setTool(t){finishInline();
+function setTool(t){finishInline();if(t==='text')t='edittext';
   if(t==='sign'){openSign();return}
   if(t==='image'){if(!S.pages.length)toast('Open a PDF first');return}
   if(t==='wmark'){wmMenu();return}
@@ -1085,7 +1086,7 @@ function setTool(t){finishInline();
 }
 function renderProps(){
   const t=S.tool,p=$('#props'),k=CKEY[t];let h='';p.classList.toggle('tiponly',t==='hand');
-  const hints={hand:'Drag to scroll, pinch to zoom, double-tap to fit. Pick a tool below to edit.',select:'Tap an item to select it, then drag to move, or pinch / drag the round corner handle to resize. Drag to scroll; press and hold, then drag a box to select several.',wo:'Drag over anything to cover it with white.',edittext:'Tap a paragraph to edit it. Drag to scroll. To pick exact lines, press and hold, then drag across them.',place:'Tap on a page to place it.'};
+  const hints={hand:'Drag to scroll, pinch to zoom, double-tap to fit. Pick a tool below to edit.',select:'Tap an item to select it, then drag to move, or pinch / drag the round corner handle to resize. Drag to scroll; press and hold, then drag a box to select several.',wo:'Drag over anything to cover it with white.',edittext:'Tap words to change them, or tap an empty spot to add text. Drag to scroll. Press and hold, then drag, to pick exact lines.',place:'Tap on a page to place it.'};
   if(t==='rotpage'){const n=S.pages.length;
     p.innerHTML=n?`<span class="hint" style="color:var(--ink);font-weight:600">Page ${S.cur+1} of ${n}</span>
       <button class="btn" data-r="-90" style="height:34px;display:flex;align-items:center;gap:5px">${icon('rotL')}Left</button>
@@ -1162,21 +1163,22 @@ function inlineText(e,pg,o){
   const style=()=>{const px=size*sc;ta.style.font=FONT(px);ta.style.lineHeight=(px*1.2)+'px';ta.style.color=color;
     ta.style.left=x+'px';ta.style.top=(y-px*.13)+'px';
     mctx.font=FONT(px);const ls=ta.value.split('\n');ta.style.width=Math.max(px*2,...ls.map(l=>mctx.measureText(l).width+px*.6))+'px';ta.style.height=(ls.length*px*1.2+2)+'px';
-    $('#txSz').textContent=size+' pt';bar.querySelectorAll('.dot').forEach(b=>b.classList.toggle('on',b.dataset.c===color))};
+    $('#txSz').textContent=Math.round(size)+' pt';bar.querySelectorAll('.dot').forEach(b=>b.classList.toggle('on',b.dataset.c===color))};
   const place=()=>{const v=window.visualViewport,bot=v?v.offsetTop+v.height:innerHeight;bar.style.top=(bot-bar.offsetHeight-6)+'px'};
   const show=()=>{place();const r=ta.getBoundingClientRect(),v=window.visualViewport,bot=(v?v.offsetTop+v.height:innerHeight)-bar.offsetHeight-16,top=$('#viewer').getBoundingClientRect().top+8;
     if(r.bottom>bot||r.top<top)$('#viewer').scrollBy({top:r.bottom>bot?r.bottom-bot+20:r.top-top-20,behavior:'smooth'})};
   ta.oninput=style;
   bar.addEventListener('pointerdown',ev=>{ev.preventDefault()});
   bar.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;
-    if(b.dataset.s){size=Math.max(6,Math.min(72,size+(+b.dataset.s)*(size>=20?4:size>=12?2:1)));if(!a)S.fontSize=size;style();ta.focus()}
+    if(b.dataset.s){size=Math.round(size);size=Math.max(6,Math.min(72,size+(+b.dataset.s)*(size>=20?4:size>=12?2:1)));if(!a)S.fontSize=size;style();ta.focus()}
     else if(b.dataset.c){color=b.dataset.c;if(!a)S.colors.text=color;style();ta.focus()}
     else if(b.hasAttribute('data-del')){ta.value='';finishInline()}
     else if(b.hasAttribute('data-ok'))finishInline()});
-  const vv=window.visualViewport;if(vv){vv.addEventListener('resize',show);vv.addEventListener('scroll',place)}
+  const vv=window.visualViewport;let kb=false;const kbWatch=()=>{if(!vv)return;if(vv.height<innerHeight*.8)kb=true;else if(kb&&TXE&&TXE.ta===ta)finishInline()};
+  if(vv){vv.addEventListener('resize',show);vv.addEventListener('scroll',place);vv.addEventListener('resize',kbWatch)}
   ta.addEventListener('blur',()=>setTimeout(()=>{if(TXE&&TXE.ta===ta&&document.activeElement!==ta)finishInline()},150));
   ta.addEventListener('keydown',ev=>{if(ev.key==='Escape'){ev.preventDefault();ta.value=orig==null?'':orig;finishInline()}else if(ev.key==='Enter'&&(ev.ctrlKey||ev.metaKey)){ev.preventDefault();finishInline()}});
-  TXE={ta,bar,done(){if(vv){vv.removeEventListener('resize',show);vv.removeEventListener('scroll',place)}
+  TXE={ta,bar,done(){if(vv){vv.removeEventListener('resize',show);vv.removeEventListener('scroll',place);vv.removeEventListener('resize',kbWatch)}
     const v=ta.value.replace(/\s+$/,'');ta.remove();bar.remove();TXE=null;document.body.classList.remove('typing');setTimeout(()=>{try{renderProps()}catch(_){}},0);
     if(a){a.text=orig;const A=pg.annots.indexOf(a);if(A<0){drawOverlay(e);return}
       if(!v){snapshot();pg.annots.splice(A,1);setSel(null)}
@@ -2004,7 +2006,7 @@ $('#crDel').onclick=()=>{SC.pages.splice(SC.edit,1);$('#crop').classList.remove(
 $('#crDone').onclick=async()=>{const p=SC.pages[SC.edit];p.straight=SC.straight;p.clean=SC.clean;p.q=SC.q.map(x=>[...x]);p.rot=SC.rot;p.filter=SC.filter;busy('Cleaning up page…');try{await processScan(p)}catch(e){console.error(e);toast('Could not process that page')}unbusy();$('#crop').classList.remove('on');renderScan()};
 
 /* ---------------- text structure: lines & paragraphs ---------------- */
-function ensureText(e,pg){if(!e.tit&&!e.tload){e.tload=1;getTC(pg).then(tc=>{e.tit=tItems(tc);e.tb=null;if(els.get(e.id)===e)drawOverlay(e)})}}
+function ensureText(e,pg){if(!e.tit&&!e.tload){e.tload=1;e.tP=getTC(pg).then(tc=>{e.tit=tItems(tc);e.tb=null;if(els.get(e.id)===e)drawOverlay(e)})}return e.tP||Promise.resolve()}
 function buildLines(items){
   const hz=items.filter(it=>Math.abs(it.ang)<.03).sort((a,b)=>b.y-a.y||a.x-b.x),lines=[];
   for(const it of hz){
@@ -2103,13 +2105,19 @@ function editRotatedAt(e,pg,P){
   openEditText(init,o=>{snapshot();getPg(pg.id).annots.push(Object.assign({t:'edit'},init,o));drawOverlay(e)},true);return true;
 }
 function setMsel(m){const prev=S.msel;S.msel=m;if(m&&S.sel)S.sel=null;[prev&&prev.pid,m&&m.pid].forEach(id=>{if(id&&els.get(id))drawOverlay(els.get(id))});renderSelbar()}
+/* a scanned page has no words to change yet: offer to read them, or just type on top */
+function scanTextAsk(e,pg,sx,sy){S.scanAsked=true;
+  openModal(`<h3>This page is a scan</h3><p class="small" style="margin-top:-4px">It's a picture of the page, so its words can't be changed yet. Folio can read the text first (a few seconds, needs internet the first time). Then tap any word to change it.</p>
+   <div class="btns"><button class="btn" id="stAdd">Just add text here</button><button class="btn pri" id="stRead">Read the text</button></div>`);
+  $('#stAdd').onclick=()=>{closeModal();const e2=els.get(pg.id)||e;inlineText(e2,pg,{sx,sy})};
+  $('#stRead').onclick=async()=>{closeModal();await ocrDocument();toast('Done. Now tap the words you want to change.',4000)}}
 function finishMarq(e,pg,d){
   if(S.sel)setSel(null);
-  if(!e.tit){ensureText(e,pg);toast('Reading this page… try again in a moment');return}
+  if(!e.tit){ensureText(e,pg).then(()=>{if(e.tit&&els.get(e.id)===e)finishMarq(e,pg,d)});return}
   const tb=textStruct(e),tap=Math.hypot(d.end[0]-d.start[0],d.end[1]-d.start[1])<8;let lines=[],ann=[];
   if(tap){const P=e.vp.convertToPdfPoint(...d.start),L=lineAt(tb,P);
     if(L){const B=tb.blocks.find(b=>b.lines.includes(L));lines=B?B.lines:[L]}
-    else if(S.tool==='edittext'){if(!editRotatedAt(e,pg,P))toast('No text there. Tap a paragraph, or press and hold then drag across the lines you want.');return}
+    else if(S.tool==='edittext'){if(!editRotatedAt(e,pg,P)){const[sx,sy]=d.start;if(!e.tit.length&&!S.scanAsked)scanTextAsk(e,pg,sx,sy);else inlineText(e,pg,{sx,sy})}return}
     else{setMsel(null);return}}
   else{const x0=Math.min(d.start[0],d.end[0]),x1=Math.max(d.start[0],d.end[0]),y0=Math.min(d.start[1],d.end[1]),y1=Math.max(d.start[1],d.end[1]);
     lines=tb.lines.filter(l=>{const r=scrRect(e,lineRect(l)),cx=(r[0]+r[2])/2,cy=(r[1]+r[3])/2;return cx>=x0&&cx<=x1&&cy>=y0&&cy<=y1});
@@ -2122,7 +2130,8 @@ function finishMarq(e,pg,d){
 
 /* ---------------- edit existing text ---------------- */
 const tcCache=new Map();
-function getTC(pg){const src=S.sources[pg.src];const k=pg.src+':'+pg.idx+':'+(src.ver||0);if(!tcCache.has(k))tcCache.set(k,srcPage(pg).getTextContent().catch(()=>({items:[],styles:{}})));return tcCache.get(k)}
+/* page text, cached on its own document (a cache shared across documents showed the previous file's text) */
+function getTC(pg){const src=S.sources[pg.src],m=src.tcm||(src.tcm=new Map()),k=pg.idx+':'+(src.ver||0);if(!m.has(k))m.set(k,srcPage(pg).getTextContent().catch(()=>({items:[],styles:{}})));return m.get(k)}
 function tItems(tc){return(tc.items||[]).filter(it=>it.str&&it.str.trim()&&it.transform).map(it=>{const t=it.transform;const size=Math.hypot(t[2],t[3])||Math.hypot(t[0],t[1])||10;
   return{str:it.str,x:t[4],y:t[5],w:it.width||size*it.str.length*.5,size,ang:Math.atan2(t[1],t[0]),fontName:it.fontName,fam:((tc.styles||{})[it.fontName]||{}).fontFamily||'sans-serif'}})}
 function itemPoly(it){const c=Math.cos(it.ang),s=Math.sin(it.ang),u=[c,s],v=[-s,c];return[[-1,-.25],[it.w+1,-.25],[it.w+1,.95],[-1,.95]].map(([a,b])=>{const r=b*it.size;return[it.x+u[0]*a+v[0]*r,it.y+u[1]*a+v[1]*r]})}
@@ -2356,15 +2365,17 @@ async function ocrCanvas(worker,c){
   const{data}=await worker.recognize(src);
   return(data.words||[]).filter(w=>w.text&&w.text.trim()&&w.confidence>25).map(w=>({t:w.text.trim(),x0:w.bbox.x0/src.width,y0:w.bbox.y0/src.height,x1:w.bbox.x1/src.width,y1:w.bbox.y1/src.height}));
 }
+/* recognised words as invisible text. Words on one printed line share one size and baseline, and each word is
+   squeezed or stretched to its true width, so the text groups into proper lines and paragraphs for Text editing. */
 function drawHiddenWords(page,words,font,toPdf){
   const L=PDFLib;page.pushOperators(L.pushGraphicsState(),L.setTextRenderingMode(L.TextRenderingMode.Invisible));
-  for(const w of words){
-    const t=[...w.t].map(ch=>{try{font.encodeText(ch);return ch}catch(e){return ''}}).join('');if(!t)continue;
-    const[a,b]=toPdf(w.x0,w.y1),[c,d]=toPdf(w.x1,w.y0);const W=c-a,H=d-b;if(W<=0||H<=0)continue;
-    const wid=font.widthOfTextAtSize(t,1)||1,size=Math.max(1,Math.min(H*1.25,W/wid));
-    try{page.drawText(t,{x:a,y:b+H*.2,size,font})}catch(e){}
-  }
-  page.pushOperators(L.popGraphicsState());
+  const ws=words.map(w=>{const t=[...w.t].map(ch=>{try{font.encodeText(ch);return ch}catch(e){return ''}}).join('');const[a,b]=toPdf(w.x0,w.y1),[c,d]=toPdf(w.x1,w.y0);return{t,a,b,W:c-a,H:d-b,yc:(b+d)/2}}).filter(w=>w.t&&w.W>0&&w.H>0).sort((p,q)=>q.yc-p.yc||p.a-q.a);
+  const lines=[];for(const w of ws){const Ln=lines.find(l=>Math.abs(l.yc-w.yc)<Math.max(l.h,w.H)*.5);if(Ln){Ln.ws.push(w);Ln.yc=(Ln.yc*(Ln.ws.length-1)+w.yc)/Ln.ws.length}else lines.push({yc:w.yc,h:w.H,ws:[w]})}
+  const med=a=>{a=a.slice().sort((x,y)=>x-y);return a[Math.floor(a.length/2)]},pct=(a,p)=>{a=a.slice().sort((x,y)=>x-y);return a[Math.min(a.length-1,Math.floor(a.length*p))]};
+  for(const ln of lines){const size=Math.max(1,med(ln.ws.map(w=>w.H))*1.25),base=pct(ln.ws.map(w=>w.b),.7);
+    for(const w of ln.ws){const wid=font.widthOfTextAtSize(w.t,size)||1,sq=Math.max(40,Math.min(250,w.W/wid*100));
+      try{page.pushOperators(L.setCharacterSqueeze(sq));page.drawText(w.t,{x:w.a,y:base,size,font})}catch(e){}}}
+  page.pushOperators(L.setCharacterSqueeze(100),L.popGraphicsState());
 }
 async function ocrDocument(){
   if(!S.pages.length){toast('Open a PDF first');return}
@@ -2388,7 +2399,7 @@ async function ocrDocument(){
   }catch(e){console.error(e);toast('Text recognition failed: '+(e.message||e),4500)}
   try{await worker.terminate()}catch(e){}
   unbusy();relayout(true);
-  toast(done?`Text recognised on ${done} page${done>1?'s':''}. Use Edit text or Select to change it.`:'This PDF already has text. Nothing needed reading.',4500);
+  toast(done?`Text recognised on ${done} page${done>1?'s':''}. Use Text or Select to change it.`:'This PDF already has text. Nothing needed reading.',4500);
 }
 async function showAllText(){
   if(!S.pages.length){toast('Open a PDF first');return}
@@ -3565,6 +3576,7 @@ function navWatch(el,close){
 let navDocWas=false;setInterval(()=>{const open=!!(S&&S.pages&&S.pages.length);if(open&&!navDocWas&&navActive())navPush();navDocWas=open},400);
 addEventListener('popstate',()=>{
   NAV.n=Math.max(0,NAV.n-1);
+  if(TXE){finishInline();navGuard();return}
   const top=NAV.stack[NAV.stack.length-1];
   if(top){NAV.fromPop=true;try{top.close()}finally{NAV.fromPop=false}if(NAV.stack[NAV.stack.length-1]===top)NAV.stack.pop();navGuard();return}
   if(S.pages.length){navGuard();leaveDoc();return}
