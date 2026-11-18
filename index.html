@@ -416,7 +416,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 89<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 90<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -2305,7 +2305,9 @@ $('#scLive').onclick=openLive;
 /* ---------------- OCR (text recognition) ---------------- */
 let tessP=null;
 function loadTess(){if(window.Tesseract)return Promise.resolve();if(!tessP)tessP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';s.onload=res;s.onerror=()=>{tessP=null;rej(new Error('Could not load the text reader'))};document.head.appendChild(s)});return tessP}
-async function ocrWorker(onProg){await loadTess();return Tesseract.createWorker(REGION.lang||'eng',1,{logger:m=>{if(m.status==='recognizing text'&&onProg)onProg(m.progress||0)}})}
+/* receipt:true reads the page as one block of lines, so the price column on the right stays with its item */
+async function ocrWorker(onProg,receipt){await loadTess();const w=await Tesseract.createWorker(REGION.lang||'eng',1,{logger:m=>{if(m.status==='recognizing text'&&onProg)onProg(m.progress||0)}});
+  if(receipt)try{await w.setParameters({tessedit_pageseg_mode:'6'})}catch(e){console.warn(e)}return w}
 function imgFrom(url){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url})}
 async function ocrCanvas(worker,c){
   const s=Math.min(1,2600/Math.max(c.width,c.height));const src=s<1?downscale(c,2600):c;
@@ -2413,7 +2415,7 @@ function openScanSave(mode){
     if(mode==='save'){lsSet('foliotest.dl.scan',wantDl?'1':'0');if(folder&&!isReceiptFolder(folder))lsSet('foliotest.lastFolder.scan',folder)}
     ocr=$('#ssOcr').checked;lsSet('foliotest.ocr',ocr?'1':'0');if(isReceiptFolder(folder))ocr=true;closeModal();
     const splitNow=mode==='save'&&folder&&isReceiptFolder(folder)&&SC.pages.length>1&&split;
-    let bytes;try{bytes=await buildScanPdf(look,ocr,qual)}catch(e){console.error(e);unbusy();toast('Could not build the PDF: '+(e.message||e),4500);return}
+    SC.forReceipt=isReceiptFolder(folder);let bytes;try{bytes=await buildScanPdf(look,ocr,qual)}catch(e){console.error(e);unbusy();toast('Could not build the PDF: '+(e.message||e),4500);return}
     unbusy();
     if(splitNow){await saveSplitReceipts(bytes,name,folder,wantDl);return}
     const mb=bytes.length/1048576,sz=mb>=1?mb.toFixed(1)+' MB':Math.max(1,Math.round(bytes.length/1024))+' KB';
@@ -2455,7 +2457,7 @@ async function buildScanPdf(look,ocr,qual,P){
   P=P||SC.pages;const n=P.length,outs=[];
   for(let i=0;i<n;i++){const p=P[i];if(look==='keep'||look===p.filter)outs.push(p.out);else{busy(`Preparing page ${i+1} of ${n}…`);await tick();outs.push(await processScan(p,look))}}
   let words=null,worker=null;
-  if(ocr){busy('Loading the text reader…');try{worker=await ocrWorker(pr=>{$('#busyMsg').textContent=`Reading text on page ${cur} of ${n}… ${Math.round(pr*100)}%`})}catch(e){toast("The text reader couldn't load, so the PDF was saved without editable text.",5000)}}
+  if(ocr){busy('Loading the text reader…');try{worker=await ocrWorker(pr=>{$('#busyMsg').textContent=`Reading text on page ${cur} of ${n}… ${Math.round(pr*100)}%`},SC.mode==='receipt'||SC.forReceipt)}catch(e){toast("The text reader couldn't load, so the PDF was saved without editable text.",5000)}}
   let cur=0;
   if(worker){words=[];try{for(let i=0;i<n;i++){cur=i+1;$('#busyMsg').textContent=`Reading text on page ${cur} of ${n}…`;const im=await imgFrom(outs[i]);const c=downscale(im,2600);words.push(await ocrCanvas(worker,c))}}catch(e){console.error(e);words=null;toast('Text recognition failed. Saved without editable text.',4500)}try{await worker.terminate()}catch(e){}}
   const QS={small:[2.2,.75],std:[5,.82],high:[0,.9]}[qual||'std']||[5,.82];   // megapixels, JPEG quality
@@ -2908,7 +2910,7 @@ function readReceipt(text){
   // total: a TOTAL / AMOUNT DUE line (not subtotal), else the largest amount
   let total=null;
   for(let i=0;i<lines.length;i++){const l=lines[i];if(/s\s?u\s?b\s*-?\s*(tota[l1]|ttl)|s\s*\/\s*total|sous[\s-]*total|total\s*(?:savings|discount|items|qty|tax|before)|before\s*tax|net\s*total|merchandise|goods\s*total|items?\s*total|amount\s*before/i.test(l))continue;
-    if(/\b(grand\s*total|tota[l1]|amount\s*due|balance\s*due|bal(ance)?\b|montant|à payer|a payer|total\s*due|amount\s*paid|total\s*payable|total\s*amount|ttl|tot\b)/i.test(l)&&!/tax\s*tota|tota[l1]\s*tax|tota[l1]\s*(hst|gst|pst)|tota[l1]\s*taxes/i.test(l)){let a=rcAmounts(l);if(!a.length&&lines[i+1])a=rcAmounts(lines[i+1]);if(a.length){const v=a[a.length-1];if(total===null||v>=total)total=v}}}
+    if(/\b(grand\s*total|tota[l1]|amount\s*due|balance\s*due|bal(ance)?\b|montant|à payer|a payer|total\s*due|amount\s*paid|total\s*payable|total\s*amount|ttl|tot\b)/i.test(l)&&!/tax\s*tota|tota[l1]\s*tax|tota[l1]\s*(hst|gst|pst)|tota[l1]\s*taxes|tota[l1]\s*(number|no\.?|#)\s*(of\s*)?items|items?\s*sold|tota[l1]\s*(items|qty|quantity|savings|saved|points)/i.test(l)){let a=rcAmounts(l);if(!a.length&&lines[i+1])a=rcAmounts(lines[i+1]);if(a.length){const v=a[a.length-1];if(total===null||v>=total)total=v}}}
   let subA=null;for(const l of lines)if(/s\s?u\s?b\s*-?\s*(tota[l1]|ttl)|s\s*\/\s*total|sous[\s-]*total|before\s*tax|pre[\s-]*tax|net\s*(amount|total|sales)?\b|merchandise(\s*total)?|goods\s*total|items?\s*total|amount\s*before|total\s*before/i.test(l)&&!/net\s*(wt|weight)/i.test(l)){const a=rcAmounts(l);if(a.length)subA=a[a.length-1]}
   const allAmts=lines.flatMap(rcAmounts).filter(v=>v<100000);
   if(total!==null&&subA!==null&&total<subA)total=null;               // a "total" smaller than the subtotal is a misread
@@ -2939,7 +2941,10 @@ function readReceipt(text){
       const capR=Math.max(.151,REGION.rate/100+.02);if(!total||sum<=total*capR)pick=sum;else{const ok=use.filter(t=>t.v<=total*capR);if(ok.length){const rr=(REGION.rate||13)/100,want=total*rr/(1+rr);pick=ok.reduce((a,t)=>Math.abs(t.v-want)<Math.abs(a-want)?t.v:a,ok[0].v)}}}
     if(pick!==null)r.tax=pick.toFixed(2)}
   {let tip=null;for(const l of lines)if(/\b(tip|tips|gratuit(y|é)|pourboire|propina|trinkgeld)\b/i.test(l)&&!/suggest|guide|\d{1,2}\s*%\s*[=:]|tip\s*%/i.test(l)){const a=rcAmounts(l);if(a.length&&a[a.length-1]>0)tip=a[a.length-1]}
-   if(tip!==null&&(!total||tip<total*.6))r.tip=tip.toFixed(2)}
+   if(tip!==null&&(!total||tip<total*.6))r.tip=tip.toFixed(2)
+   if(!r.tip&&total&&lines.some(l=>/\b(tip|tips|gratuit(y|é)|pourboire|propina)\b/i.test(l))){let ch=null;
+     for(const l of lines)if(/tota[l1]\s*(charged|paid|with\s*tip|incl\.?\s*tip)|amount\s*charged|grand\s*tota[l1]|montant\s*(total|factur)/i.test(l)){const a=rcAmounts(l);if(a.length)ch=a[a.length-1]}
+     const bill=r.subtotal&&r.tax?+r.subtotal+ +r.tax:total;if(ch&&ch>bill+.009&&ch-bill<bill*.6)r.tip=(ch-bill).toFixed(2)}}
   // the total kept is the BILL total (subtotal + tax); a tip is separate and added on top
   const tipV=+r.tip||0;
   if(tipV&&r.total){const t=+r.total;
@@ -3005,7 +3010,7 @@ $('#rvIn').onclick=()=>rvZoom(RV.z*1.5);$('#rvOut').onclick=()=>rvZoom(RV.z/1.5)
 /* read a saved receipt's picture when it has no text yet */
 async function ocrDocText(d,onProg){
   const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await d.blob.arrayBuffer()),isEvalSupported:false}).promise;
-  const worker=await ocrWorker(onProg);let out='';
+  const worker=await ocrWorker(onProg,true);let out='';
   try{for(let i=1;i<=Math.min(pdf.numPages,3);i++){
     const pg=await pdf.getPage(i),v1=pg.getViewport({scale:1}),vp=pg.getViewport({scale:Math.min(4,2400/Math.max(v1.width,v1.height))});
     const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
