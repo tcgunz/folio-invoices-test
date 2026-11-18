@@ -32,6 +32,13 @@ svg{width:20px;height:20px;flex:none}
 .tb.pri:hover:not(:disabled){background:#0b5f58}
 .sp{flex:1}
 @media (max-width:560px){.tb .lb{display:none}.logo span{display:none}}
+.txe{position:absolute;z-index:6;margin:0;padding:0 2px;border:0;outline:1.5px dashed var(--acc);outline-offset:3px;border-radius:2px;background:rgba(255,255,255,.55);resize:none;overflow:hidden;white-space:pre;caret-color:var(--acc);box-sizing:content-box}
+body.typing #props{visibility:hidden}
+#txBar{position:fixed;left:50%;transform:translateX(-50%);z-index:90;display:flex;align-items:center;gap:4px;max-width:calc(100vw - 12px);overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.18);padding:5px 6px}
+#txBar button{flex:none;min-width:38px;height:38px;border-radius:10px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px;padding:0 6px}
+#txBar button:active{background:#f1f3f5}#txBar .dot{min-width:24px;width:24px;height:24px;border-radius:50%;padding:0;border:2px solid #fff;box-shadow:0 0 0 1px #d1d5db}
+#txBar .dot.on{box-shadow:0 0 0 2px var(--acc)}#txBar .sep{width:1px;height:24px;background:var(--line);flex:none;margin:0 2px}
+#txBar .ok{background:var(--acc);color:#fff;padding:0 12px}#txBar .ok svg{width:18px;height:18px}#txSz{font-size:13px;min-width:38px;text-align:center;color:var(--muted)}
 #menu{position:absolute;top:48px;left:8px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.14);padding:6px;min-width:230px;display:none;z-index:40}
 #menu.on{display:block}
 #menu{max-height:calc(100vh - 64px);max-height:calc(100dvh - 64px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
@@ -45,6 +52,7 @@ svg{width:20px;height:20px;flex:none}
 .pg .ov{touch-action:none;cursor:crosshair}
 #pages.hand .ov{touch-action:pan-x pan-y;cursor:grab}
 #pages.select .ov{cursor:default}
+#pages.tap .ov{touch-action:pan-x pan-y}
 .plink{position:absolute;pointer-events:none;border-bottom:2px solid rgba(37,99,235,.45);background:rgba(37,99,235,.07);border-radius:2px}
 .pnum{position:absolute;bottom:-1px;right:-1px;transform:translateY(100%);font-size:11px;color:var(--muted);padding:2px 2px}
 #empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -400,7 +408,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 84<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 88<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -825,7 +833,7 @@ function fitWidth(doLayout=true){S.fit='width';
   S.scale=Math.max(.25,Math.min(2,(v.clientWidth-24)/mw));
   if(doLayout)relayout(false);
 }
-function relayout(keep=true){
+function relayout(keep=true){finishInline();
   const v=$('#viewer');const ratio=keep&&v.scrollHeight?v.scrollTop/v.scrollHeight:0;
   els.forEach(e=>{try{e.task&&e.task.cancel()}catch(_){}});els.clear();
   if(io)io.disconnect();
@@ -965,8 +973,18 @@ function setSel(sel){
   [prev&&prev.pid,sel&&sel.pid].forEach(id=>{if(id&&els.get(id))drawOverlay(els.get(id))});
   renderSelbar();
 }
+const TAPT=new Set(['text','check','cross','place','edittext','select']),TAP={p:null,t:0,lock:false};
+const fakePtr=ev=>({clientX:ev.clientX,clientY:ev.clientY,pointerType:ev.pointerType,isPrimary:true,pointerId:ev.pointerId,button:0,preventDefault(){}});
 function onDown(ev,e){
+  if(TXE){ev.preventDefault();finishInline();return}
   if(PINCH.on||(ev.pointerType==='touch'&&!ev.isPrimary))return;
+  if(ev.pointerType==='touch'&&!ev._go&&TAPT.has(S.tool)){const pg=getPg(e.id);
+    let grab=false;if(S.tool==='select'&&pg){const[sx,sy]=loc(ev,e);grab=hitTest(e,pg,sx,sy)>=0;
+      if(!grab&&S.sel&&S.sel.pid===pg.id){const a=pg.annots[S.sel.i];if(a){const b=bbox(a,e.vp,rot(pg));grab=Math.hypot(sx-b[2],sy-b[3])<28}}}
+    if(grab)TAP.lock=true;
+    else{ev.preventDefault();clearTimeout(TAP.t);const P={e,id:ev.pointerId,x:ev.clientX,y:ev.clientY,fk:fakePtr(ev)};TAP.p=P;
+      if(S.tool==='select'||S.tool==='edittext')TAP.t=setTimeout(()=>{if(TAP.p!==P)return;TAP.p=null;TAP.lock=true;try{navigator.vibrate&&navigator.vibrate(12)}catch(_){}onDown(Object.assign(P.fk,{_go:1,_marq:1}),P.e)},420);
+      return}}
   const pg=getPg(e.id);if(!pg)return;const t=S.tool;
   if(t==='hand'&&ev.pointerType==='mouse'){const hit=linkAt(ev.clientX,ev.clientY);if(hit){followLink(hit);return}}
   if(t==='hand'||t==='rotpage'){if(ev.pointerType==='mouse'){const v=$('#viewer');drag={mode:'pan',e,x:ev.clientX,y:ev.clientY,sl:v.scrollLeft,st:v.scrollTop};e.c2.setPointerCapture(ev.pointerId)}return}
@@ -979,13 +997,13 @@ function onDown(ev,e){
       drag={mode:'resize',e,orig:JSON.parse(JSON.stringify(a)),c:vp.convertToPdfPoint(cx,cy),cs:[cx,cy],d0:Math.max(10,Math.hypot(sx-cx,sy-cy)),moved:false};return}}}
   if(t==='select'||t==='edittext'){
     const h=hitTest(e,pg,sx,sy);
-    if(h>=0&&t==='edittext'&&['tblock','edit'].includes(pg.annots[h].t)){editAnnot(e,pg,h);return}
+    if(h>=0&&t==='edittext'&&!ev._marq&&['tblock','edit'].includes(pg.annots[h].t)){editAnnot(e,pg,h);return}
     if(h>=0&&t==='select'){if(S.msel)setMsel(null);setSel({pid:pg.id,i:h});S.undo.push(JSON.stringify(S.pages));drag={mode:'move',e,last:[sx,sy],moved:false};return}
     if(S.sel&&ev.pointerType!=='touch')setSel(null);ensureText(e,pg);drag={mode:'marq',e,start:[sx,sy],end:[sx,sy]};drawOverlay(e);return}
   if(S.sel)setSel(null);
   if(t==='pen'){snapshot();const a={t:'ink',s:[[P]],color:S.colors.pen,w:S.widths.pen};pg.annots.push(a);drag={mode:'ink',e,a,last:[sx,sy]};drawOverlay(e);return}
   if(['hl','wo','rect','ellipse','line','arrow'].includes(t)){snapshot();const a={t,a:P,b:P,color:t==='wo'?'#ffffff':t==='hl'?S.colors.hl:S.colors.shape,w:S.widths.shape};if(t==='hl'||t==='wo')delete a.w;pg.annots.push(a);drag={mode:'shape',e,a,start:[sx,sy]};return}
-  if(t==='text'){openText(null,(txt,size,color)=>{snapshot();const tl=vp.convertToPdfPoint(sx,sy-size*S.scale*.6);pg.annots.push({t:'text',x:tl[0],y:tl[1],R:rot(pg),text:txt,size,color});drawOverlay(e);setSel({pid:pg.id,i:pg.annots.length-1})});return}
+  if(t==='text'){const h=hitTest(e,pg,sx,sy);inlineText(e,pg,h>=0&&pg.annots[h].t==='text'?{i:h}:{sx,sy});return}
   if(t==='check'||t==='cross'){snapshot();const s=8*S.scale;const C=(dx,dy)=>vp.convertToPdfPoint(sx+dx,sy+dy);
     const strokes=t==='check'?[[C(-s,0),C(-s*.3,s*.75),C(s,-s*.85)]]:[[C(-s*.8,-s*.8),C(s*.8,s*.8)],[C(s*.8,-s*.8),C(-s*.8,s*.8)]];
     pg.annots.push({t:'ink',s:strokes,color:S.colors.mark,w:2});drawOverlay(e);return}
@@ -994,6 +1012,7 @@ function onDown(ev,e){
     S.pending=null;setTool('select');drawOverlay(e);setSel({pid:pg.id,i:pg.annots.length-1});return}
 }
 function onMove(ev,e){
+  if(TAP.p&&ev.pointerId===TAP.p.id&&Math.hypot(ev.clientX-TAP.p.x,ev.clientY-TAP.p.y)>10){clearTimeout(TAP.t);TAP.p=null}
   if(PINCH.on||!drag||drag.e!==e)return;
   if(drag.mode==='pan'){const v=$('#viewer');v.scrollLeft=drag.sl-(ev.clientX-drag.x);v.scrollTop=drag.st-(ev.clientY-drag.y);return}
   const pg=getPg(e.id),vp=e.vp;const evs=(drag.mode==='ink'&&ev.getCoalescedEvents)?ev.getCoalescedEvents():[ev];
@@ -1008,6 +1027,9 @@ function onMove(ev,e){
   drawOverlay(e);
 }
 function onUp(ev,e){
+  if(TAP.p&&ev.pointerId===TAP.p.id){const P=TAP.p;TAP.p=null;clearTimeout(TAP.t);
+    if(ev.type==='pointerup'&&Math.hypot(ev.clientX-P.x,ev.clientY-P.y)<12){onDown(Object.assign(P.fk,{_go:1}),P.e);if(drag&&drag.e===P.e)onUp(fakePtr(ev),P.e)}return}
+  TAP.lock=false;
   if(!drag||drag.e!==e)return;const pg=getPg(e.id);
   if(drag.mode==='marq'){const d=drag;drag=null;drawOverlay(e);finishMarq(e,pg,d);return}
   if((drag.mode==='move'||drag.mode==='resize')&&!drag.moved)S.undo.pop();
@@ -1020,19 +1042,19 @@ function renderTools(){
   $('#tools').innerHTML=TOOLS.map(t=>t==='|'?'<span class="tsep"></span>':`<button data-t="${t[0]}" class="${S.tool===t[0]?'on':''}">${icon(t[0])}<span>${t[1]}</span></button>`).join('');
 }
 $('#tools').addEventListener('click',ev=>{const b=ev.target.closest('button[data-t]');if(b)setTool(b.dataset.t)});
-function setTool(t){
+function setTool(t){finishInline();
   if(t==='sign'){openSign();return}
   if(t==='image'){if(!S.pages.length)toast('Open a PDF first');return}
   if(t==='wmark'){openWm();return}
   if(t!=='place')S.pending=null;
   S.tool=t;
-  $('#pages').className=(t==='hand'||t==='rotpage')?'hand':t==='select'?'select':t==='edittext'?'select':'';
+  $('#pages').className=((t==='hand'||t==='rotpage')?'hand':t==='select'?'select':t==='edittext'?'select':'')+(TAPT.has(t)?' tap':'');
   if(t!=='select'&&S.sel)setSel(null);if(S.msel)setMsel(null);
   renderTools();renderProps();redrawAll();
 }
 function renderProps(){
   const t=S.tool,p=$('#props'),k=CKEY[t];let h='';p.classList.toggle('tiponly',t==='hand');
-  const hints={hand:'Drag to scroll, pinch to zoom, double-tap to fit. Pick a tool below to edit.',select:'Tap an item to select it, then drag to move, or pinch / drag the round corner handle to resize. Drag a box to select several.',wo:'Drag over anything to cover it with white.',edittext:'Tap a paragraph to edit it, or drag across exactly the lines you want.',place:'Tap on a page to place it.'};
+  const hints={hand:'Drag to scroll, pinch to zoom, double-tap to fit. Pick a tool below to edit.',select:'Tap an item to select it, then drag to move, or pinch / drag the round corner handle to resize. Drag to scroll; press and hold, then drag a box to select several.',wo:'Drag over anything to cover it with white.',edittext:'Tap a paragraph to edit it. Drag to scroll. To pick exact lines, press and hold, then drag across them.',place:'Tap on a page to place it.'};
   if(t==='rotpage'){const n=S.pages.length;
     p.innerHTML=n?`<span class="hint" style="color:var(--ink);font-weight:600">Page ${S.cur+1} of ${n}</span>
       <button class="btn" data-r="-90" style="height:34px;display:flex;align-items:center;gap:5px">${icon('rotL')}Left</button>
@@ -1079,6 +1101,7 @@ $('#selbar').addEventListener('click',ev=>{
     drawOverlay(e);toast(act==='fit'?'Fitted to the page':'Filled the page (edges past the page are trimmed when saved)',2500);return}
   if(act==='edit'&&a.t==='tblock'){editAnnot(e,pg,S.sel.i);return}
   if(act==='edit'&&a.t==='edit'){const i=S.sel.i;openEditText(a,(o)=>{snapshot();Object.assign(getPg(pg.id).annots[i],o);drawOverlay(e)});return}
+  if(act==='edit'&&a.t==='text'){inlineText(e,pg,{i:S.sel.i});return}
   if(act==='edit'){openText(a,(txt,size,color)=>{snapshot();const A=getPg(pg.id).annots[S.sel.i];A.text=txt;A.size=size;A.color=color;drawOverlay(e)});return}
   if(act==='dup'){snapshot();const c=JSON.parse(JSON.stringify(a));moveA(c,12,-12);pg.annots.push(c);setSel({pid:pg.id,i:pg.annots.length-1});drawOverlay(e);return}
   const f=act==='bigger'?1.15:1/1.15;snapshot();
@@ -1092,6 +1115,46 @@ $('#selbar').addEventListener('click',ev=>{
   drawOverlay(e);
 });
 
+/* ---------------- type straight onto the page ---------------- */
+let TXE=null;
+function inlineText(e,pg,o){
+  finishInline();
+  const sc=S.scale,i=o.i,a=i!=null?pg.annots[i]:null;
+  if(a&&a.R!==rot(pg)){openText(a,(txt,size,color)=>{snapshot();const A=getPg(pg.id).annots[i];A.text=txt;A.size=size;A.color=color;drawOverlay(e)});return}
+  let size=a?a.size:S.fontSize,color=a?a.color:S.colors.text,x,y;
+  if(a){[x,y]=e.vp.convertToViewportPoint(a.x,a.y)}else{x=o.sx;y=o.sy-size*sc*.6}
+  const orig=a?a.text:null;if(a){a.text='';drawOverlay(e)}
+  const ta=document.createElement('textarea');ta.className='txe';ta.value=orig||'';ta.spellcheck=true;ta.setAttribute('autocapitalize','sentences');ta.rows=1;
+  const bar=document.createElement('div');bar.id='txBar';
+  bar.innerHTML=`<button data-s="-1" title="Smaller">A−</button><span id="txSz"></span><button data-s="1" title="Bigger">A+</button><span class="sep"></span>${INK.map(c=>`<button class="dot" data-c="${c}" style="background:${c}"></button>`).join('')}<span class="sep"></span>${a?`<button data-del title="Delete">${icon('trash')}</button>`:''}<button class="ok" data-ok>${icon('check')}Done</button>`;
+  e.el.appendChild(ta);document.body.appendChild(bar);document.body.classList.add('typing');
+  const style=()=>{const px=size*sc;ta.style.font=FONT(px);ta.style.lineHeight=(px*1.2)+'px';ta.style.color=color;
+    ta.style.left=x+'px';ta.style.top=(y-px*.13)+'px';
+    mctx.font=FONT(px);const ls=ta.value.split('\n');ta.style.width=Math.max(px*2,...ls.map(l=>mctx.measureText(l).width+px*.6))+'px';ta.style.height=(ls.length*px*1.2+2)+'px';
+    $('#txSz').textContent=size+' pt';bar.querySelectorAll('.dot').forEach(b=>b.classList.toggle('on',b.dataset.c===color))};
+  const place=()=>{const v=window.visualViewport,bot=v?v.offsetTop+v.height:innerHeight;bar.style.top=(bot-bar.offsetHeight-6)+'px'};
+  const show=()=>{place();const r=ta.getBoundingClientRect(),v=window.visualViewport,bot=(v?v.offsetTop+v.height:innerHeight)-bar.offsetHeight-16,top=$('#viewer').getBoundingClientRect().top+8;
+    if(r.bottom>bot||r.top<top)$('#viewer').scrollBy({top:r.bottom>bot?r.bottom-bot+20:r.top-top-20,behavior:'smooth'})};
+  ta.oninput=style;
+  bar.addEventListener('pointerdown',ev=>{ev.preventDefault()});
+  bar.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;
+    if(b.dataset.s){size=Math.max(6,Math.min(72,size+(+b.dataset.s)*(size>=20?4:size>=12?2:1)));if(!a)S.fontSize=size;style();ta.focus()}
+    else if(b.dataset.c){color=b.dataset.c;if(!a)S.colors.text=color;style();ta.focus()}
+    else if(b.hasAttribute('data-del')){ta.value='';finishInline()}
+    else if(b.hasAttribute('data-ok'))finishInline()});
+  const vv=window.visualViewport;if(vv){vv.addEventListener('resize',show);vv.addEventListener('scroll',place)}
+  ta.addEventListener('blur',()=>setTimeout(()=>{if(TXE&&TXE.ta===ta&&document.activeElement!==ta)finishInline()},150));
+  ta.addEventListener('keydown',ev=>{if(ev.key==='Escape'){ev.preventDefault();ta.value=orig==null?'':orig;finishInline()}else if(ev.key==='Enter'&&(ev.ctrlKey||ev.metaKey)){ev.preventDefault();finishInline()}});
+  TXE={ta,bar,done(){if(vv){vv.removeEventListener('resize',show);vv.removeEventListener('scroll',place)}
+    const v=ta.value.replace(/\s+$/,'');ta.remove();bar.remove();TXE=null;document.body.classList.remove('typing');setTimeout(()=>{try{renderProps()}catch(_){}},0);
+    if(a){a.text=orig;const A=pg.annots.indexOf(a);if(A<0){drawOverlay(e);return}
+      if(!v){snapshot();pg.annots.splice(A,1);setSel(null)}
+      else if(v!==orig||size!==a.size||color!==a.color){snapshot();const B=pg.annots[A];B.text=v;B.size=size;B.color=color;setSel({pid:pg.id,i:A})}
+      drawOverlay(e);return}
+    if(v){snapshot();const tl=e.vp.convertToPdfPoint(x,y);pg.annots.push({t:'text',x:tl[0],y:tl[1],R:rot(pg),text:v,size,color});drawOverlay(e);setSel({pid:pg.id,i:pg.annots.length-1})}}};
+  style();place();ta.focus({preventScroll:true});setTimeout(show,350);
+}
+function finishInline(){if(TXE)TXE.done()}
 /* ---------------- text modal ---------------- */
 function openText(a,ok){
   let color=a?a.color:S.colors.text,size=a?a.size:S.fontSize;
@@ -1886,7 +1949,7 @@ function drawCrop(){
     x.beginPath();x.arc(lx,ly,R,0,7);x.strokeStyle='#fff';x.lineWidth=2;x.stroke()}
 }
 window.addEventListener('resize',()=>{if($('#crop').classList.contains('on'))drawCrop()});
-{let rT;addEventListener('resize',()=>{clearTimeout(rT);rT=setTimeout(()=>{if(!S.pages.length||PINCH.on)return;if(S.fit==='page')fitPage(true);else if(S.fit==='width')fitWidth(true)},250)})}
+{let rT,rW=innerWidth;addEventListener('resize',()=>{clearTimeout(rT);rT=setTimeout(()=>{if(Math.abs(innerWidth-rW)<2)return;rW=innerWidth;if(!S.pages.length||PINCH.on||TXE)return;if(S.fit==='page')fitPage(true);else if(S.fit==='width')fitWidth(true)},250)})}
 const cropCv=$('#cropCv');
 cropCv.addEventListener('pointerdown',ev=>{if(SC.view==='preview'){setCropView('corners');return}const r=cropCv.getBoundingClientRect(),px=ev.clientX-r.left,py=ev.clientY-r.top;let bi=-1,bd=1e9;
   SC.q.forEach((q,i)=>{const d=Math.hypot(CR.ox+q[0]*CR.s-px,CR.oy+q[1]*CR.s-py);if(d<bd){bd=d;bi=i}});
@@ -2008,7 +2071,7 @@ function finishMarq(e,pg,d){
   const tb=textStruct(e),tap=Math.hypot(d.end[0]-d.start[0],d.end[1]-d.start[1])<8;let lines=[],ann=[];
   if(tap){const P=e.vp.convertToPdfPoint(...d.start),L=lineAt(tb,P);
     if(L){const B=tb.blocks.find(b=>b.lines.includes(L));lines=B?B.lines:[L]}
-    else if(S.tool==='edittext'){if(!editRotatedAt(e,pg,P))toast('No text there. Tap a paragraph, or drag across the lines you want.');return}
+    else if(S.tool==='edittext'){if(!editRotatedAt(e,pg,P))toast('No text there. Tap a paragraph, or press and hold then drag across the lines you want.');return}
     else{setMsel(null);return}}
   else{const x0=Math.min(d.start[0],d.end[0]),x1=Math.max(d.start[0],d.end[0]),y0=Math.min(d.start[1],d.end[1]),y1=Math.max(d.start[1],d.end[1]);
     lines=tb.lines.filter(l=>{const r=scrRect(e,lineRect(l)),cx=(r[0]+r[2])/2,cy=(r[1]+r[3])/2;return cx>=x0&&cx<=x1&&cy>=y0&&cy<=y1});
@@ -3276,7 +3339,10 @@ const PINCH={on:null};
   const mid=t=>[(t[0].clientX+t[1].clientX)/2,(t[0].clientY+t[1].clientY)/2];
   const cancelDrag=()=>{if(!drag)return;const e=drag.e,pg=getPg(e.id);
     if(pg&&(drag.mode==='ink'||drag.mode==='shape')){pg.annots.pop();S.undo.pop()}drag=null;drawOverlay(e);updateUI()};
+  v.addEventListener('touchmove',ev=>{if(TAP.lock&&ev.touches.length===1&&ev.cancelable)ev.preventDefault()},{passive:false});
+  v.addEventListener('touchend',ev=>{if(!ev.touches.length)setTimeout(()=>{TAP.lock=false},0)});
   v.addEventListener('touchstart',ev=>{
+    if(ev.touches.length===2){TAP.p=null;clearTimeout(TAP.t);TAP.lock=false}
     if(ev.touches.length!==2||!S.pages.length)return;
     if(S.sel&&S.tool==='select'){const pg=getPg(S.sel.pid),e=els.get(S.sel.pid),a=pg&&pg.annots[S.sel.i];
       if(a&&e){if(drag&&drag.mode==='move'){drag=null}else S.undo.push(JSON.stringify(S.pages));const b=bbox(a,e.vp,rot(pg)),cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2;
@@ -3296,7 +3362,7 @@ const PINCH={on:null};
   const end=ev=>{
     const P=PINCH.on;if(!P||ev.touches.length>=2)return;PINCH.on=null;
     if(P===PINCH.item){PINCH.item=null;S.dirty=true;updateUI();renderSelbar();return}box.style.transform='';box.style.transformOrigin='';
-    if(Math.abs(P.k-1)<.02){$('#zVal').textContent=Math.round(S.scale*100)+'%';return}
+    if(Math.abs(P.k-1)<.02){$('#zVal').textContent=Math.round(S.scale*100)+'%';v.scrollLeft-=P.m[0]-P.m0[0];v.scrollTop-=P.m[1]-P.m0[1];return}
     S.scale=Math.max(.25,Math.min(5,S.scale*P.k));relayout(false);
     const vr=v.getBoundingClientRect();
     if(P.anchor&&els.get(P.anchor.id)){const r=els.get(P.anchor.id).el.getBoundingClientRect();v.scrollLeft+=r.left+P.anchor.fx*r.width-P.m[0];v.scrollTop+=r.top+P.anchor.fy*r.height-P.m[1]}
