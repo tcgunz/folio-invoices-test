@@ -145,6 +145,7 @@ input.fo{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:point
 /* scanner */
 #scan,#crop{position:fixed;inset:0;z-index:50;background:#101215;color:#f3f4f6;display:none;flex-direction:column}
 #scan.on,#crop.on{display:flex}
+body.scanTop #scan,body.scanTop #crop{z-index:76}body.scanTop #live{z-index:77}
 .sh{height:54px;display:flex;align-items:center;padding:0 8px;gap:6px;border-bottom:1px solid #22262c;flex:none}
 .sh b{font-size:16px}
 .sh .tb:hover{background:#1d2126}
@@ -1540,13 +1541,28 @@ V.addEventListener('drop',e=>{e.preventDefault();const fs=[...e.dataTransfer.fil
 const SC={pages:[],edit:-1,q:null,rot:0,filter:'auto',drag:-1};
 const FILTERS=[['auto','Auto'],['gray','Grayscale'],['bw','Black & white'],['orig','Original']];
 function openScanner(mode){SC.mode=mode==='receipt'?'receipt':'doc';closeDrawers();$('#scTitle').textContent=SC.mode==='receipt'?'Scan receipts':'Scanner';$('#scan').classList.add('on');renderScan()}
+/* the scanner borrowed by another screen (income proof): it gets its own pages, opens above that screen's form,
+   and hands back the finished PDF instead of saving it. The pages already in the scanner are kept for later. */
+function openScanFor(opt){
+  if(SC.saved)endScanFor();
+  SC.saved={pages:SC.pages,mode:SC.mode};SC.pages=[];SC.mode='income';SC.forCb=opt.done;SC.forText=opt;
+  document.body.classList.add('scanTop');$('#scTitle').textContent=opt.title||'Scan';
+  $('#scEdit').style.display='none';$('#scSave').innerHTML=`<span class="ic" data-i="check"></span>${esc(opt.btn||'Attach')}`;paintIcons($('#scSave'));
+  $('#scan').classList.add('on');renderScan()}
+function endScanFor(){if(!SC.saved)return;SC.pages=SC.saved.pages;SC.mode=SC.saved.mode;SC.saved=null;SC.forCb=null;SC.forText=null;
+  document.body.classList.remove('scanTop');$('#scEdit').style.display='';$('#scSave').innerHTML=`<span class="ic" data-i="download"></span>Save PDF`;paintIcons($('#scSave'));renderScan()}
+new MutationObserver(()=>{if(SC.saved&&!$('#scan').classList.contains('on'))endScanFor()}).observe($('#scan'),{attributes:true,attributeFilter:['class']});
+async function scanForDone(){const cb=SC.forCb;if(!cb||!SC.pages.length)return;let bytes;
+  try{bytes=await buildScanPdf('keep',false,'std')}catch(e){console.error(e);unbusy();toast("Couldn't put the scan together. Try again.");return}
+  $('#crop').classList.remove('on');$('#scan').classList.remove('on');endScanFor();
+  try{await cb(bytes)}catch(e){console.error(e);unbusy();toast("The scan couldn't be attached")}}
 $('#scBack').onclick=()=>$('#scan').classList.remove('on');
 $('#fCam').onchange=e=>addScans([...e.files],false);
 $('#fPic').onchange=e=>addScans([...e.files],false);
 function renderScan(){
   const B=$('#scanBody');const n=SC.pages.length;$('#scCount').textContent=n?`${n} page${n>1?'s':''}`:'';
   $('#scSave').disabled=$('#scEdit').disabled=!n;
-  if(!n){B.innerHTML=`<div class="sempty"><div class="ic">${icon('scan')}</div><h2>${SC.mode==='receipt'?'Scan your receipts':'Scan paper to PDF'}</h2><p><b style="color:#5eead4">Auto scan</b> watches through your camera and grabs each page by itself once it\u2019s held steady. Just turn the pages.<br><br><b>Camera</b> and <b>Photos</b> also crop${SC.mode==='receipt'?' each receipt automatically. Straighten text and Clean edges start off for receipts; turn them on for a page by tapping it':', straighten and clean each page automatically'}.<br><br>Tip: put the paper on a dark surface in good light.</p></div>`;return}
+  if(!n){B.innerHTML=`<div class="sempty"><div class="ic">${icon('scan')}</div><h2>${SC.mode==='receipt'?'Scan your receipts':SC.mode==='income'?esc(SC.forText&&SC.forText.heading||'Scan your proof of payment'):'Scan paper to PDF'}</h2>${SC.mode==='income'&&SC.forText&&SC.forText.tip?`<p style="color:#5eead4">${esc(SC.forText.tip)}</p>`:''}<p><b style="color:#5eead4">Auto scan</b> watches through your camera and grabs each page by itself once it\u2019s held steady. Just turn the pages.<br><br><b>Camera</b> and <b>Photos</b> also crop${SC.mode==='receipt'?' each receipt automatically. Straighten text and Clean edges start off for receipts; turn them on for a page by tapping it':', straighten and clean each page automatically'}.<br><br>Tip: put the paper on a dark surface in good light.</p></div>`;return}
   B.innerHTML=`<div class="sgrid">${SC.pages.map((p,i)=>`<div class="scard"><img src="${p.out}" data-ed="${i}" alt="Page ${i+1}"><div class="r"><button data-sa="l" data-i="${i}" ${i?'':'disabled'}>${icon('left')}</button><span>Page ${i+1}<br><small style="opacity:.6">${p.ow||''}×${p.oh||''}</small></span><button data-sa="r" data-i="${i}" ${i<n-1?'':'disabled'}>${icon('right')}</button><button data-sa="x" data-i="${i}">${icon('trash')}</button></div></div>`).join('')}</div>`;
 }
 $('#scanBody').addEventListener('click',ev=>{
@@ -1840,7 +1856,7 @@ async function scansToPdf(){
   return d.save();
 }
 const scanName=()=>{const t=new Date();return`Scan ${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}.pdf`};
-$('#scSave').onclick=async()=>{await libFolders();openScanSave('save')};
+$('#scSave').onclick=async()=>{if(SC.forCb){scanForDone();return}await libFolders();openScanSave('save')};
 $('#scEdit').onclick=()=>openScanSave('edit');
 
 /* --- crop editor --- */
@@ -3471,6 +3487,12 @@ body.noiv .ivx{display:none!important}
 .icpf{display:flex;gap:8px;align-items:center;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .icpf .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
 .icpf .ic{color:#6d28d9}
+.icpf2{display:flex;gap:10px;align-items:center;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:8px}
+.icpf2 .th{flex:none;width:64px;height:80px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:0;overflow:hidden;display:grid;place-items:center;cursor:zoom-in;color:#6d28d9}
+.icpf2 .th img{width:100%;height:100%;object-fit:cover}
+.icpf2 .mt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.icpf2 .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:500}
+.icpfb{display:flex;gap:6px;margin-top:6px}.icpfb .btn{flex:1;height:38px;padding:0 6px;font-size:13px}
 .ivcl{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .ivcl span{flex:1;min-width:0}
 .ivcl small{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -3699,16 +3721,37 @@ function incEdit(id){
     x.date=$('#icDate').value||ivToday();x.from=$('#icFrom').value.trim();x.desc=$('#icDesc').value.trim();x.amount=amt.toFixed(2);
     const tx=$('#icTax')?ivN($('#icTax').value):0;x.tax=tx?tx.toFixed(2):'';x.method=$('#icMethod').value;x.note=$('#icNote').value.trim();return true};
   const storeX=()=>{ivIncLoad();const i=IV.inc.findIndex(y=>y.id===x.id);if(i>=0)IV.inc[i]=x;else IV.inc.push(x);ivIncStore();if($('#inv').classList.contains('on'))ivRender();if($('#mio').classList.contains('on'))mioRender()};
-  /* proof: a photo or file, saved to the Library's Income folder and linked to this entry */
-  const proofUI=()=>{const P=$('#icProof');if(!P)return;
-    P.innerHTML=x.docId?`<div class="icpf"><span class="ic" data-i="image"></span><span class="nm">${esc(x.docName||'Attached proof')}</span><button class="btn" id="icPView" style="flex:none;height:34px">View</button><button class="btn red" id="icPDel" style="flex:none;height:34px">Remove</button></div>`
-      :`<div style="display:flex;gap:8px"><button class="btn" id="icPCam" style="flex:1"><span class="ic" data-i="camera"></span>Take photo</button><button class="btn" id="icPFile" style="flex:1"><span class="ic" data-i="folder"></span>Choose file</button></div>`;
+  /* proof: scanned pages or a picked file, saved as one PDF in the Library's Income folder and linked to this entry.
+     Take photo opens the scanner (finds the page edges, crops and cleans), so a cheque's front and back can be one file. */
+  const proofName=()=>{const d=$('#icDate')&&$('#icDate').value||x.date||ivToday(),f=$('#icFrom')&&$('#icFrom').value.trim()||x.from||'payment';
+    return`Income proof ${d} - ${f}`.replace(/[\\/:*?"<>|]+/g,' ')};
+  const scanProof=how=>openScanFor({title:how==='add'?'Add a page':how==='replace'?'Retake proof':'Scan proof of payment',
+    heading:how==='add'?'Scan the extra page':'Scan your proof of payment',
+    tip:how==='add'?'For example the back of the cheque. It’s added to the end of the same file.':'Cheque? Scan the front, then the back. Both pages go into one file.',
+    btn:how==='add'?'Add to proof':how==='replace'?'Use this scan':'Attach',done:bytes=>saveProof(bytes,how)});
+  const saveProof=async(bytes,how)=>{busy(how==='add'?'Adding page…':'Attaching proof…');
+    try{let id=null,nm=proofName(),folder='Income';
+      if(how!=='new'&&x.docId){const d=await libGet(x.docId);
+        if(d){id=d.id;nm=d.name;folder=d.folder||'Income';
+          if(how==='add'){const doc=await PDFLib.PDFDocument.load(new Uint8Array(await d.blob.arrayBuffer())),more=await PDFLib.PDFDocument.load(bytes);
+            (await doc.copyPages(more,more.getPageIndices())).forEach(pg=>doc.addPage(pg));bytes=await doc.save()}}}
+      await libFolders();x.docId=await libSave(nm,folder,bytes,id);x.docName=nm;if(old)storeX();unbusy();await proofUI();
+      toast(how==='add'?'Page added to the proof':how==='replace'?'Proof replaced':'Proof attached')}
+    catch(e){console.error(e);unbusy();toast("That proof couldn't be saved")}};
+  const proofUI=async()=>{const P=$('#icProof');if(!P)return;
+    if(!x.docId){P.innerHTML=`<div style="display:flex;gap:8px"><button class="btn" id="icPCam" style="flex:1"><span class="ic" data-i="camera"></span>Take photo</button><button class="btn" id="icPFile" style="flex:1"><span class="ic" data-i="folder"></span>Choose file</button></div>`;
+      paintIcons(P);$('#icPCam').onclick=()=>scanProof('new');$('#icPFile').onclick=()=>{IV.proofFor=onProof;$('#icFileF').value='';$('#icFileF').click()};return}
+    let d=null;try{d=await libGet(x.docId)}catch(e){}
+    if(!$('#icProof'))return;
+    if(!d){x.docId='';x.docName='';if(old)storeX();proofUI();toast("The proof file is no longer in your Library");return}
+    P.innerHTML=`<div class="icpf2"><button class="th" id="icPThumb" aria-label="View proof">${d.thumb?`<img src="${d.thumb}" alt="Proof preview">`:'<span class="ic" data-i="image"></span>'}</button>
+      <div class="mt"><span class="nm">${esc(x.docName||d.name||'Attached proof')}</span><span class="small">${d.pages||1} page${(d.pages||1)>1?'s':''} · tap the picture to view</span></div></div>
+      <div class="icpfb"><button class="btn" id="icPAdd"><span class="ic" data-i="plus"></span>Add page</button><button class="btn" id="icPRe"><span class="ic" data-i="camera"></span>Retake</button><button class="btn red" id="icPDel"><span class="ic" data-i="trash"></span>Remove</button></div>`;
     paintIcons(P);
-    if(x.docId){$('#icPView').onclick=async()=>{try{const d=await libGet(x.docId);if(!d){toast("That file is no longer in your Library");x.docId='';x.docName='';proofUI();return}const b=new Uint8Array(await d.blob.arrayBuffer());ivShowPdf(b,d.name,'view')}catch(e){console.error(e);toast("Couldn't open it")}};
-      $('#icPDel').onclick=()=>{x.docId='';x.docName='';if(old)storeX();proofUI();toast("Removed from this entry. The file stays in your Library")}}
-    else{$('#icPCam').onclick=()=>{IV.proofFor=onProof;$('#icCamF').value='';$('#icCamF').click()};$('#icPFile').onclick=()=>{IV.proofFor=onProof;$('#icFileF').value='';$('#icFileF').click()}}};
-  const onProof=async f=>{busy('Adding proof…');try{const bytes=await ivFileToPdf(f);readX();const nm=`Income proof ${x.date||ivToday()} - ${x.from||'payment'}`.replace(/[\\/:*?"<>|]+/g,' ');
-      await libFolders();x.docId=await libSave(nm,'Income',bytes);x.docName=nm;if(old)storeX();unbusy();proofUI();toast('Proof attached')}catch(e){console.error(e);unbusy();toast("That file couldn't be added")}};
+    $('#icPThumb').onclick=async()=>{try{const d2=await libGet(x.docId);if(!d2){proofUI();return}ivShowPdf(new Uint8Array(await d2.blob.arrayBuffer()),d2.name,'view')}catch(e){console.error(e);toast("Couldn't open it")}};
+    $('#icPAdd').onclick=()=>scanProof('add');$('#icPRe').onclick=()=>scanProof('replace');
+    $('#icPDel').onclick=()=>{x.docId='';x.docName='';if(old)storeX();proofUI();toast("Removed from this entry. The file stays in your Library")}};
+  const onProof=async f=>{busy('Adding proof…');let bytes;try{bytes=await ivFileToPdf(f)}catch(e){console.error(e);unbusy();toast("That file couldn't be added");return}saveProof(bytes,'new')};
   proofUI();
   $('#icRcpt').onclick=()=>{if(!readX())return;if(!x.from){toast('Add who paid you first');$('#icFrom').focus();return}storeX();incReceipt(x)};
   $('#icSave').onclick=()=>{if(!readX())return;const amt=ivN(x.amount);storeX();
