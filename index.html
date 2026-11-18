@@ -241,7 +241,12 @@ table.xs tfoot td{font-weight:700;padding:10px 8px;background:#f9fafb}
 #libChips button{background:#fff;border:1px solid var(--line);color:var(--ink)}
 #libChips button.on,#lib #libChips button.on{background:var(--acc)!important;border-color:var(--acc);color:#fff!important}
 #libChips button.rcchip{background:#fffbeb;border-color:#fcd34d;color:#92400e}
+#libChips button{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#libChips button.dragging{transform:scale(1.08);box-shadow:0 6px 16px rgba(0,0,0,.25);z-index:2;position:relative}
+#libChips.dragmode{overflow-x:hidden}
+#libHint{padding:6px 14px 0;color:var(--muted)}
 #libChips button.rcchip.on{background:#d97706!important;border-color:#d97706;color:#fff!important}
+.hmRow{display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--line)}.hmRow label{flex:1;display:flex;gap:10px;align-items:center;min-width:0}.hmRow input{width:20px;height:20px;flex:none;accent-color:var(--acc)}.hmRow small{display:block;color:var(--muted);font-size:12px}.hmRow .btn{width:38px;height:36px;padding:0;justify-content:center}
 .chipsep{width:1px;background:var(--line);margin:4px 4px;flex:none}
 .lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
 .lcard{background:#fff;border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:3px;cursor:pointer;border:1px solid var(--line)}
@@ -411,12 +416,11 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <button data-m="lib"><span class="ic" data-i="books"></span>Library</button>
     <button data-m="theme"><span class="ic" data-i="palette"></span>Theme</button>
     <button data-m="region"><span class="ic" data-i="globe"></span>Region &amp; currency</button>
-    <button data-m="rctoggle" id="mRc"><span class="ic" data-i="grid"></span><span id="mRcL">Hide Receipts &amp; expenses</span></button>
-    <button data-m="ivtoggle" id="mIv"><span class="ic" data-i="form"></span><span id="mIvL">Hide Invoices &amp; income</span></button>
+    <button data-m="homeset"><span class="ic" data-i="grid"></span>Home screen…</button>
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 93<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 94<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -427,18 +431,20 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
       <div class="logo" style="justify-content:center"><i style="width:48px;height:48px;border-radius:14px;font-size:22px">F</i></div>
       <h1>Folio <span style="font-size:.45em;vertical-align:middle;background:rgba(255,255,255,.22);border-radius:8px;padding:3px 8px">TRIAL</span></h1>
       <p>Scan, edit and sign documents, and keep your receipts organized.</p>
+      <div class="hx" data-sec="docs">
       <div class="hsec"><b>Documents</b><span>Open, edit, sign &amp; scan PDFs</span></div>
       <button class="big" data-m="open"><span class="ic" data-i="folder"></span><span><b>Open a PDF</b><small>From your device, or drop it here</small></span></button>
       <button class="big" data-m="scan"><span class="ic" data-i="scan"></span><span><b>Scan a document</b><small>Use your camera or photos</small></span></button>
       <button class="big" data-m="blank"><span class="ic" data-i="filePlus"></span><span><b>Start with a blank page</b><small>Letter size, ready to write on</small></span></button>
       <button class="big" data-m="libdocs"><span class="ic" data-i="books"></span><span><b>Your Library</b><small>Everything you've saved</small></span></button>
-      <div class="rcx">
+      </div>
+      <div class="rcx hx" data-sec="rc">
         <div class="hsec"><b>Receipts &amp; expenses</b><span>Scan, track &amp; export</span></div>
         <button class="big" data-m="scanrc"><span class="ic rc" data-i="camera"></span><span><b>Scan a receipt</b><small>Reads the store, date, tax and total for you</small></span></button>
         <button class="big" data-m="rcsheet"><span class="ic rc" data-i="grid"></span><span><b>Expenses spreadsheet</b><small>Totals by month and category, export to Excel</small></span></button>
         <button class="big" data-m="rclib"><span class="ic rc" data-i="folder"></span><span><b>Receipts folder</b><small>Browse and search your receipts</small></span></button>
       </div>
-      <div class="ivx">
+      <div class="ivx hx" data-sec="inv">
         <div class="hsec"><b>Invoices &amp; income</b><span>Money coming in</span></div>
         <button class="big" data-m="invnew"><span class="ic iv" data-i="filePlus"></span><span><b>New invoice</b><small>Create it, save as PDF and send it</small></span></button>
         <button class="big" data-m="incnew"><span class="ic iv" data-i="plus"></span><span><b>Record income</b><small>E-transfers, cash, cheques and other payments</small></span></button>
@@ -533,6 +539,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
 <input type="file" id="fCam" accept="image/*" capture="environment" hidden>
 <input type="file" id="fPic" accept="image/*" multiple hidden>
 <input type="file" id="fRestore" accept=".zip,application/zip" hidden>
+<input type="file" id="fImport" accept="application/pdf,image/*" multiple hidden>
 
 <script>
 /* ---- Watermark finder / remover (works on raw PDF content streams) ---- */
@@ -1577,7 +1584,8 @@ function menuAct(m){
   if(m==='wm')openWm();
   if(m==='lib'||m==='libdocs')openDocsLibrary();
   if(m==='scanrc')openScanner('receipt');
-  if(m==='rclib'||m==='rcsheet'){(async()=>{await libFolders();if(!LIB.folders.includes('Receipts')&&!LIB.folders.some(isReceiptFolder))await libSetFolders([...LIB.folders,'Receipts']);LIB.folder=LIB.folders.find(isReceiptFolder)||'Receipts';await openLibrary();if(m==='rcsheet')openSheet()})()}
+  if(m==='rclib'||m==='rcsheet'){(async()=>{await libFolders();if(!LIB.folders.includes('Receipts')&&!LIB.folders.some(isReceiptFolder))await libSetFolders([...LIB.folders,'Receipts']);LIB.ctx='rc';LIB.showOther=false;LIB.folder=LIB.folders.find(isReceiptFolder)||'Receipts';await openLibrary();if(m==='rcsheet')openSheet()})()}
+  if(m==='homeset'){homeSettings();return}
   if(m==='rctoggle'){const on=lsGet('foliotest.receipts')==='0';lsSet('foliotest.receipts',on?'1':'0');applyRcSetting();toast(on?'Receipts & expenses shown':'Receipts & expenses hidden. Turn back on from the File menu')}
   if(m==='invnew')invEdit();
   if(m==='invlist')invOpen();
@@ -2586,7 +2594,7 @@ async function libBackup(){
       files.push({name:fn,data:new Uint8Array(await d.blob.arrayBuffer())});const{blob,...meta}=d;man.docs.push({...meta,file:fn})}
     files.unshift({name:'folio-library.json',data:new TextEncoder().encode(JSON.stringify(man))});
     const z=makeZip(files);unbusy();const t=new Date();
-    offerDownload(`Folio backup ${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}.zip`,z,'application/zip');
+    readyShare([{name:`Folio backup ${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}.zip`,bytes:z,type:'application/zip'}],'Folio backup');
   }catch(e){console.error(e);unbusy();toast('Backup failed: '+(e.message||e),4500)}
 }
 async function libRestore(file){
@@ -2600,24 +2608,47 @@ async function libRestore(file){
   }catch(e){console.error(e);unbusy();toast('Could not restore: '+(e.message||e),4500)}
 }
 /* library screen */
-async function openDocsLibrary(){await libFolders();LIB.folder=LIB.folders.includes('Documents')?'Documents':(LIB.folders.find(f=>!isReceiptFolder(f))||'');LIB.q='';const sb=$('#libSearch');if(sb)sb.value='';return openLibrary()}
+async function openDocsLibrary(){LIB.ctx='docs';LIB.showOther=false;await libFolders();LIB.folder=LIB.folders.includes('Documents')?'Documents':(LIB.folders.find(f=>!isReceiptFolder(f))||'');LIB.q='';const sb=$('#libSearch');if(sb)sb.value='';return openLibrary()}
 async function openLibrary(){closeDrawers();$('#lib').classList.add('on');await libFolders();renderLib()}
 $('#libBack').onclick=()=>{LIB.sel=null;$('#lib').classList.remove('on')};
 $('#libSort').onchange=e=>{LIB.sort=e.target.value;lsSet('foliotest.lsort',LIB.sort);renderLibGrid()};
 $('#libView').onclick=()=>{LIB.view=LIB.view==='list'?'grid':'list';lsSet('foliotest.lview',LIB.view);renderLibGrid()};
-$('#libMoreB').onclick=()=>{openModal(`<h3>Back up &amp; restore</h3><p class="small" style="margin-top:-6px">Your Library lives only on this phone. A backup is one .zip with every document, folder and receipt detail. Keep it in Google Drive or email it to yourself.</p>
+$('#libMoreB').onclick=()=>{openModal(`<h3>Import, back up &amp; restore</h3>
+   <button class="btn hasfo" id="lmIm" style="width:100%;justify-content:flex-start;gap:8px;margin-top:2px">${icon('plus')} Import files…</button>
+   <p class="small" style="margin:6px 0 12px">Pick PDFs or photos (several at once is fine) from this phone, Google Drive or another app, and put them in a folder.</p>
+   <p class="small" style="margin:0">Your Library lives only on this phone. A backup is one .zip with every document, folder and receipt detail. Save it to Google Drive or email it to yourself. To restore, pick that .zip (Google Drive shows up in the file picker).</p>
    <div style="display:grid;gap:8px;margin-top:10px"><button class="btn pri" id="lmBk" style="justify-content:flex-start;gap:8px">${icon('download')} Back up everything</button><button class="btn hasfo" id="lmRs" style="justify-content:flex-start;gap:8px">${icon('folder')} Restore from a backup…</button></div>
    <p class="small" style="margin-top:10px">Restore only adds: documents you already have are skipped and nothing is deleted.</p><div class="btns"><button class="btn" data-x>Close</button></div>`);
-  $('#lmBk').onclick=()=>{closeModal();$('#libBackup').click()};overlayInput($('#lmRs'),'fRestore');$('#lmRs').querySelector('input.fo').addEventListener('change',()=>closeModal())};
+  $('#lmBk').onclick=()=>{closeModal();$('#libBackup').click()};overlayInput($('#lmRs'),'fRestore');$('#lmRs').querySelector('input.fo').addEventListener('change',()=>closeModal());
+  overlayInput($('#lmIm'),'fImport');$('#lmIm').querySelector('input.fo').addEventListener('change',()=>closeModal())};
+/* import many PDFs / photos into one folder */
+async function importAsk(files){files=files.filter(f=>/pdf|image\//i.test(f.type)||/\.(pdf|jpe?g|png|webp|heic)$/i.test(f.name||''));if(!files.length){toast('Pick PDFs or photos');return}
+  await libFolders();const cur=LIB.folder||(LIB.ctx==='rc'?LIB.folders.find(isReceiptFolder):'')||'Documents';const fs=[...new Set([...LIB.folders,'Documents'])];
+  openModal(`<h3>Import ${files.length} file${files.length>1?'s':''}</h3><div class="fld"><label>Put ${files.length>1?'them':'it'} in</label><select id="imF">${fs.map(f=>`<option ${f===cur?'selected':''}>${esc(f)}</option>`).join('')}</select></div>
+   <p class="small">Photos become PDFs. ${files.length>1?'Each file stays separate.':''} Receipts can be read afterwards with Read receipts in the spreadsheet.</p><div class="btns"><button class="btn" data-x>Cancel</button><button class="btn pri" id="imGo">Import</button></div>`);
+  $('#imGo').onclick=async()=>{const folder=$('#imF').value;closeModal();let ok=0;
+    for(let i=0;i<files.length;i++){const f=files[i];busy(`Importing ${i+1} of ${files.length}…`);await tick();
+      try{const bytes=await fileAsPdf(f);await libSave((f.name||'Imported').replace(/\.(pdf|jpe?g|png|webp|heic)$/i,'')+'.pdf',folder,bytes);ok++}catch(e){console.error(e)}}
+    unbusy();LIB.folder=folder;if($('#lib').classList.contains('on'))renderLib();else openLibrary();toast(ok===files.length?`Imported ${ok} file${ok>1?'s':''} into ${folder}`:`Imported ${ok} of ${files.length}. Some couldn't be read.`,4000)}}
+async function fileAsPdf(f){const buf=new Uint8Array(await f.arrayBuffer());if(f.type==='application/pdf'||/\.pdf$/i.test(f.name||'')){await PDFLib.PDFDocument.load(buf,{ignoreEncryption:true});return buf}
+  const url=URL.createObjectURL(f);try{const im=await imgFrom(url),c=downscale(im,2400);const g=c.getContext('2d');g.globalCompositeOperation='destination-over';g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);
+    const jpg=Uint8Array.from(atob(c.toDataURL('image/jpeg',.85).split(',')[1]),ch=>ch.charCodeAt(0));const doc=await PDFLib.PDFDocument.create(),img=await doc.embedJpg(jpg),k=Math.min(1,612/img.width);
+    doc.addPage([img.width*k,img.height*k]).drawImage(img,{x:0,y:0,width:img.width*k,height:img.height*k});return await doc.save()}finally{URL.revokeObjectURL(url)}}
 $('#libSearch').oninput=e=>{LIB.q=e.target.value;renderLibGrid()};
 async function renderLib(){
   try{LIB.docs=await libAll()}catch(e){LIB.docs=[];$('#libGrid').innerHTML='<p class="small">Storage isn’t available in this browser.</p>';return}
   await libFolders();if(LIB.folder&&!LIB.folders.includes(LIB.folder))LIB.folder='';
   const cnt=f=>LIB.docs.filter(d=>d.folder===f).length;
-  const rcOff=lsGet('foliotest.receipts')==='0',dF=LIB.folders.filter(f=>!isReceiptFolder(f)),rF=LIB.folders.filter(isReceiptFolder);
+  const rcOff=lsGet('foliotest.receipts')==='0',dF=LIB.folders.filter(f=>!isReceiptFolder(f)),rF=rcOff?[]:LIB.folders.filter(isReceiptFolder);
   const allN=LIB.docs.filter(d=>!(rcOff&&isReceiptFolder(d.folder))).length;
-  $('#libChips').innerHTML=`<button data-f="" class="${LIB.folder===''?'on':''}">All · ${allN}</button>`+dF.map(f=>`<button data-f="${esc(f)}" class="${LIB.folder===f?'on':''}">${esc(f)} · ${cnt(f)}</button>`).join('')
-    +(rF.length&&!rcOff?`<span class="chipsep"></span>`+rF.map(f=>`<button data-f="${esc(f)}" class="rcchip ${LIB.folder===f?'on':''}">🧾 ${esc(f)} · ${cnt(f)}</button>`).join(''):'')+`<button data-new="1">＋ New folder</button>`;
+  // folders that fit where you are come first; the others wait behind "Other folders"
+  if(LIB.folder)LIB.ctx=isReceiptFolder(LIB.folder)?'rc':'docs';const ctx=LIB.ctx==='rc'&&rF.length?'rc':'docs';
+  const mine=ctx==='rc'?rF:dF,other=ctx==='rc'?dF:rF,chip=f=>`<button data-f="${esc(f)}" class="${isReceiptFolder(f)?'rcchip ':''}${LIB.folder===f?'on':''}">${isReceiptFolder(f)?'🧾 ':''}${esc(f)} · ${cnt(f)}</button>`;
+  if(other.includes(LIB.folder))LIB.showOther=true;
+  $('#libChips').innerHTML=`<button data-f="" class="${LIB.folder===''?'on':''}">All · ${allN}</button>`+mine.map(chip).join('')
+    +(other.length?(LIB.showOther?`<span class="chipsep"></span>`+other.map(chip).join('')+`<button data-other="0">‹ Fewer</button>`:`<button data-other="1">Other folders · ${other.length} ›</button>`):'')+`<button data-new="1">＋ New folder</button>`;
+  {let h=$('#libHint');const n=mine.length+(LIB.showOther?other.length:0);if(!h){h=document.createElement('div');h.id='libHint';h.className='small';$('#libChips').after(h)}
+   h.textContent=n>=2&&lsGet('foliotest.fmoved')!=='1'?'Tip: press and hold a folder, then drag it to change the order.':'';h.style.display=h.textContent?'':'none'}
   $('#libFolderTools').style.display=LIB.folder?'flex':'none';
   {const showSheet=LIB.folder?isReceiptFolder(LIB.folder):(!rcOff&&LIB.docs.some(d=>isReceiptFolder(d.folder)));$('#libSheet').style.display=showSheet?'':'none'}
   renderLibGrid();
@@ -2650,10 +2681,27 @@ function renderLibGrid(){
   const pg=d=>d.pages?` · ${d.pages} page${d.pages>1?'s':''}`:'',lst=LIB.view==='list';
   G.innerHTML=`<div class="lgrid ${lst?'list':''}">${list.map(d=>{const rc=d.receipt&&isReceiptFolder(d.folder);return`<div class="lcard" data-id="${d.id}"><button class="lmore" data-more="${d.id}" aria-label="More">⋯</button><div class="lth">${d.thumb?`<img src="${d.thumb}" alt="">`:icon('filePlus')}</div><div class="lmeta"><b>${esc(libTitle(d))}</b>${rc&&d.receipt.total?`<span class="lamt">${esc(fmtMoney(rcCharged(d.receipt)))}${d.receipt.category?' · '+esc(d.receipt.category):''}</span>`:''}<span>${LIB.folder?'':esc(d.folder)+' · '}${rc&&d.receipt.date?esc(d.receipt.date):dt(d.updated)}${rc?'':pg(d)}${lst?' · '+fmtSize(d.size||0):''}</span>${dups.has(d.id)?'<span class="ldup">Possible duplicate</span>':''}</div></div>`}).join('')}</div>`;
 }
-$('#libChips').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
+$('#libChips').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b||$('#libChips').dataset.nc)return;
+  if(b.dataset.other){LIB.showOther=b.dataset.other==='1';renderLib();return}
   if(b.dataset.new){openModal(`<h3>New folder</h3><input type="text" id="nfName" placeholder="e.g. Business 2026"><div class="btns"><button class="btn" data-x>Cancel</button><button class="btn pri" id="nfOk">Create</button></div>`);setTimeout(()=>$('#nfName').focus(),50);
     $('#nfOk').onclick=async()=>{const n=$('#nfName').value.trim().slice(0,40);if(!n)return;closeModal();await libSetFolders([...LIB.folders,n]);LIB.folder=n;renderLib()};return}
   LIB.folder=b.dataset.f;renderLib()});
+/* folder chips: press and hold, then drag to put your folders in your own order (saved with the Library, and in backups) */
+{const C=$('#libChips');let H=null;
+  C.addEventListener('pointerdown',e=>{const b=e.target.closest('button[data-f]');if(!b||!b.dataset.f||(e.pointerType==='mouse'&&e.button))return;
+    H={b,x:e.clientX,y:e.clientY,id:e.pointerId,on:false};H.t=setTimeout(()=>{if(!H)return;H.on=true;b.classList.add('dragging');C.classList.add('dragmode');try{C.setPointerCapture(H.id)}catch(_){}try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}},420)});
+  C.addEventListener('pointermove',e=>{if(!H||e.pointerId!==H.id)return;
+    if(!H.on){if(Math.hypot(e.clientX-H.x,e.clientY-H.y)>8){clearTimeout(H.t);H=null}return}
+    const r=C.getBoundingClientRect();if(e.clientX<r.left+36)C.scrollLeft-=14;else if(e.clientX>r.right-36)C.scrollLeft+=14;
+    const br=H.b.getBoundingClientRect(),y=(br.top+br.bottom)/2;let t=null;
+    for(const o of C.querySelectorAll('button[data-f]')){if(o===H.b||!o.dataset.f||o.classList.contains('rcchip')!==H.b.classList.contains('rcchip'))continue;const q=o.getBoundingClientRect();if(e.clientX>=q.left&&e.clientX<=q.right&&y>=q.top-6&&y<=q.bottom+6){t=o;break}}
+    if(t){const q=t.getBoundingClientRect();C.insertBefore(H.b,e.clientX<q.left+q.width/2?t:t.nextSibling)}});
+  const end=async()=>{if(!H)return;clearTimeout(H.t);const h=H;H=null;if(!h.on)return;h.b.classList.remove('dragging');C.classList.remove('dragmode');C.dataset.nc='1';setTimeout(()=>{delete C.dataset.nc},350);
+    const shown=[...C.querySelectorAll('button[data-f]')].map(b=>b.dataset.f).filter(Boolean);
+    await libSetFolders([...shown,...LIB.folders.filter(f=>!shown.includes(f))]);lsSet('foliotest.fmoved','1');renderLib()};
+  C.addEventListener('pointerup',end);C.addEventListener('pointercancel',end);
+  C.addEventListener('touchmove',e=>{if(H&&H.on&&e.cancelable)e.preventDefault()},{passive:false});
+  C.addEventListener('contextmenu',e=>{if(H)e.preventDefault()})}
 $('#libRenameF').onclick=()=>{const old=LIB.folder;if(!old)return;openModal(`<h3>Rename folder</h3><input type="text" id="rfName" value="${esc(old)}"><div class="btns"><button class="btn" data-x>Cancel</button><button class="btn pri" id="rfOk">Rename</button></div>`);
   $('#rfOk').onclick=async()=>{const n=$('#rfName').value.trim().slice(0,40);if(!n||n===old){closeModal();return}closeModal();busy('Renaming…');for(const d of LIB.docs.filter(d=>d.folder===old)){d.folder=n;await libPut(d)}await libSetFolders(LIB.folders.map(f=>f===old?n:f));LIB.folder=n;unbusy();renderLib()}};
 $('#libDeleteF').onclick=()=>{const f=LIB.folder;if(!f)return;const n=LIB.docs.filter(d=>d.folder===f).length;
@@ -2680,9 +2728,9 @@ async function shareFiles(files,title){
 /* a finished file, ready to send: one tap on Share opens the share menu */
 function readyShare(files,title){
   const sz=f=>fmtSize((f.bytes&&(f.bytes.length||f.bytes.byteLength))||(f.blob&&f.blob.size)||0);
-  openModal(`<h3>Ready to send</h3><div style="margin:-4px 0 10px">${files.map(f=>`<div class="row" style="gap:10px;padding:8px 0;border-bottom:1px solid var(--line)">${icon('form')}<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span><span class="small">${sz(f)}</span></div>`).join('')}</div>
-   <p class="small">Share opens your phone's share menu: pick Gmail, Outlook, Messages, WhatsApp, Drive and more. The file is attached and sent from your own account.</p>
-   <div class="btns"><button class="btn" id="rsDl">${icon('download')} Download</button><button class="btn pri" id="rsSh">${icon('share')} Share</button></div>`);
+  openModal(`<h3>Ready to save or send</h3><div style="margin:-4px 0 10px">${files.map(f=>`<div class="row" style="gap:10px;padding:8px 0;border-bottom:1px solid var(--line)">${icon('form')}<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span><span class="small">${sz(f)}</span></div>`).join('')}</div>
+   <p class="small"><b>Drive, email &amp; more</b> opens your phone's share menu: pick Google Drive (then choose the folder), OneDrive, Dropbox, Gmail, Messages and more. <b>Save to this phone</b> puts it in your Downloads folder.</p>
+   <div class="btns"><button class="btn" id="rsDl">${icon('download')} Save to this phone</button><button class="btn pri" id="rsSh">${icon('share')} Drive, email &amp; more</button></div>`);
   $('#rsSh').onclick=async()=>{const ok=await shareFiles(files,title);if(ok)closeModal()};
   $('#rsDl').onclick=async()=>{closeModal();for(const f of files)offerDownload(f.name,f.bytes||new Uint8Array(await f.blob.arrayBuffer()),f.type||'application/pdf')}}
 const deliver=(name,bytes,type)=>EXP.share?readyShare([{name,bytes,type}]):offerDownload(name,bytes,type);
@@ -2840,6 +2888,7 @@ $('#libSelMerge').onclick=async()=>{const ds=libSelDocs();if(ds.length<2){toast(
   catch(e){console.error(e);unbusy();toast('Could not combine those')}};
 
 $('#fRestore').onchange=e=>{const f=e.files&&e.files[0];if(f)libRestore(f)};
+$('#fImport').onchange=e=>{const f=[...(e.files||[])];if(f.length)importAsk(f)};
 
 /* ---------------- Region: currency, tax, date order, reading languages ---------------- */
 const REGION_PRESETS=[
@@ -3217,7 +3266,7 @@ function exportXlsx(listIn,byMonth,opts){
 function openExport(listIn){
   const shOK=canShareFiles(),shOn=shOK&&lsGet('foliotest.xsh')==='1';
   openModal(`<h3>Export</h3><p class="small" style="margin-top:-6px">Choose a file type. Both open in Excel and Google Sheets.</p>
-   ${shOK?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 0 12px" id="exHow"><button class="btn" data-how="dl">${icon('download')} Download</button><button class="btn" data-how="sh">${icon('share')} Share / email</button></div>`:''}
+   ${shOK?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 0 12px" id="exHow"><button class="btn" data-how="dl">${icon('download')} Save to this phone</button><button class="btn" data-how="sh">${icon('share')} Drive, email &amp; more</button></div>`:''}
    <button class="big" id="exX" style="display:flex;gap:12px;align-items:center;width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff;text-align:left;margin-bottom:10px"><span style="font-size:22px">📊</span><span><b>Excel (.xlsx)</b> · recommended<br><small style="color:var(--muted)">Amounts to 2 decimals, real dates, totals and a summary sheet</small></span></button>
    <button class="big" id="exC" style="display:flex;gap:12px;align-items:center;width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff;text-align:left"><span style="font-size:22px">📄</span><span><b>CSV</b><br><small style="color:var(--muted)">Plain text, for importing into other software</small></span></button>
    <p class="small" style="margin:14px 0 4px"><b>Excel options</b></p>
@@ -3406,8 +3455,24 @@ applyTheme(lsGet('foliotest.theme')||'indigo');
 setTimeout(async()=>{if(lsGet('foliotest.mig.tip')==='1')return;try{let n=0;for(const d of await libAll()){const r=d.receipt;if(!r||!(+r.tip>0)||!r.total||!r.subtotal||!r.tax)continue;
   if(Math.abs(+r.total-(+r.subtotal+ +r.tax+ +r.tip))<=.03){r.total=(+r.total- +r.tip).toFixed(2);await libPut(d);n++}}lsSet('foliotest.mig.tip','1')}catch(e){console.warn(e)}},1500);{const a=document.querySelector('#homeAbout');if(a)a.onclick=e=>{e.preventDefault();openAbout()}}document.body.classList.toggle('ci',lsGet('foliotest.ci')!=='0');
 /* ---------------- init ---------------- */
+
+/* ---- Home screen: which sections show, and in what order ---- */
+const HOME_SECS=[['docs','Documents','Open, edit, sign & scan PDFs'],['rc','Receipts & expenses','Scan, track & export'],['inv','Invoices & income','Money coming in']];
+function homeCfg(){let c=null;try{c=JSON.parse(lsGet('foliotest.home')||'null')}catch(e){}c=c&&Array.isArray(c.order)?c:{order:HOME_SECS.map(x=>x[0]),hide:[]};
+  for(const[k]of HOME_SECS)if(!c.order.includes(k))c.order.push(k);c.order=c.order.filter(k=>HOME_SECS.some(x=>x[0]===k));
+  if(lsGet('foliotest.receipts')==='0'&&!c.hide.includes('rc'))c.hide.push('rc');if(lsGet('foliotest.invoicesOn')==='0'&&!c.hide.includes('inv'))c.hide.push('inv'); return c}
+function applyHome(){const c=homeCfg(),hero=$('#empty .hero'),note=hero&&hero.querySelector(':scope > .note');if(!hero)return;
+  for(const k of c.order){const el=hero.querySelector(`:scope > .hx[data-sec="${k}"]`);if(el){hero.insertBefore(el,note);el.style.display=c.hide.includes(k)?'none':''}}
+  lsSet('foliotest.receipts',c.hide.includes('rc')?'0':'1');lsSet('foliotest.invoicesOn',c.hide.includes('inv')?'0':'1'); if(typeof applyIvSetting==='function')applyIvSetting(); applyRcSetting()}
+function homeSettings(){const draw=()=>{const c=homeCfg(),L=$('#hmList');if(!L)return;
+    L.innerHTML=c.order.map((k,i)=>{const s=HOME_SECS.find(x=>x[0]===k);return`<div class="hmRow"><label><input type="checkbox" data-k="${k}" ${c.hide.includes(k)?'':'checked'}><span><b>${esc(s[1])}</b><small>${esc(s[2])}</small></span></label>
+      <button class="btn" data-up="${i}" ${i?'':'disabled'} aria-label="Move up">↑</button><button class="btn" data-dn="${i}" ${i<c.order.length-1?'':'disabled'} aria-label="Move down">↓</button></div>`}).join('');
+    L.querySelectorAll('input[data-k]').forEach(b=>b.onchange=()=>{const c=homeCfg();const k=b.dataset.k;if(b.checked)c.hide=c.hide.filter(x=>x!==k);else{if(c.order.filter(x=>!c.hide.includes(x)).length<=1){b.checked=true;toast('Keep at least one section');return}c.hide.push(k)}save(c)});
+    L.querySelectorAll('[data-up],[data-dn]').forEach(b=>b.onclick=()=>{const c=homeCfg(),i=+(b.dataset.up??b.dataset.dn),j=b.dataset.up!=null?i-1:i+1;[c.order[i],c.order[j]]=[c.order[j],c.order[i]];save(c)})};
+  const save=c=>{lsSet('foliotest.home',JSON.stringify({order:c.order,hide:c.hide}));if(!c.hide.includes('rc'))lsSet('foliotest.receipts','1');if(!c.hide.includes('inv'))lsSet('foliotest.invoicesOn','1'); applyHome();draw()};
+  openModal(`<h3>Home screen</h3><p class="small" style="margin-top:-6px">Tick the sections you use and put them in your order. Hidden sections keep all their files, and you can turn them back on here anytime.</p><div id="hmList"></div><div class="btns"><button class="btn pri" data-x>Done</button></div>`);draw()}
 function applyRcSetting(){const off=lsGet('foliotest.receipts')==='0';document.body.classList.toggle('norc',off);const l=$('#mRcL');if(l)l.textContent=off?'Show Receipts & expenses':'Hide Receipts & expenses'}
-applyRcSetting();
+applyHome();
 /* ---------------- zoom badge + double-tap ---------------- */
 let zbT;
 function showZoomBadge(sc){const b=$('#zBadge');b.textContent=Math.round(sc*100)+'%';b.classList.add('on');clearTimeout(zbT);zbT=setTimeout(()=>b.classList.remove('on'),900)}
