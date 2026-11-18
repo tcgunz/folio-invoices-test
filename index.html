@@ -416,7 +416,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 92<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 93<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -3051,8 +3051,8 @@ function openReceiptDetails(d,isNew,after){
   {const mem=vcatGet(r.vendor);if(mem&&!(d.receipt&&d.receipt.category))r.category=mem}
   const noText=!d.text||d.text.length<8;const cats=allCats([r.category]);
   const inp=(id,lab,val,type='text',extra='')=>`<div class="fld"><label>${lab}</label><input type="${type}" id="${id}" value="${esc(val||'')}" ${extra}></div>`;
-  openModal(`<h3>${isNew?'Check the receipt details':'Receipt details'}</h3>
-   ${isNew&&!noText?'<p class="small" style="margin-top:-6px">Folio read these from the receipt. Fix anything that looks wrong.</p>':''}
+  openModal(`<h3>${isNew?'<span style="color:#15803d">Saved to Receipts ✓</span><br><span style="font-size:.85em">Check the details below</span>':'Receipt details'}</h3>
+   ${isNew?`<p class="small" style="margin-top:-6px">${noText?'Fill in what you need.':'Folio read these from the receipt. Fix anything that looks wrong.'} You can also come back to it later from the Receipts folder.</p>`:''}
    <p class="small" id="rcStatus" style="margin-top:-6px;display:none"></p>
    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><button class="btn" id="rcView" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('image')} View receipt</button><button class="btn" id="rcRead" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('wand')} Read receipt</button></div>
    ${inp('rcV','Store',r.vendor)}
@@ -3064,9 +3064,10 @@ function openReceiptDetails(d,isNew,after){
    <div class="fld"><label>Category</label><select id="rcC"><option value=""></option>${cats.map(c=>`<option ${c===r.category?'selected':''}>${esc(c)}</option>`).join('')}<option>${NEWCAT}</option></select></div>
    ${inp('rcN','Description (what it was for)',r.note)}
    <button class="link small" id="rcTxtB" style="margin:2px 0 6px">See the text Folio read</button><textarea id="rcTxt" readonly rows="8" style="display:none;font-size:12px;margin-bottom:8px"></textarea>
-   <div class="btns"><button class="btn" id="rcDel" style="margin-right:auto;color:#dc2626;border-color:#fecaca">${icon('trash')} Delete</button><button class="btn" data-x>${isNew?'Skip':'Cancel'}</button><button class="btn pri" id="rcOk">Save details</button></div>`);
-  {let armed=false;$('#rcDel').onclick=async()=>{if(!armed){armed=true;$('#rcDel').innerHTML=icon('trash')+' Tap again to delete';return}
-    try{await libDel(d.id);if(S.libId===d.id)S.libId=null;LIB.docs=await libAll()}catch(e){toast('Could not delete');return}closeModal();toast('Receipt deleted');
+   <div class="btns"><button class="btn" id="rcDel" style="margin-right:auto;color:#dc2626;border-color:#fecaca">${icon('trash')} ${isNew?'Discard this scan':'Delete'}</button>${isNew?'<button class="btn" id="rcLater">Later</button>':'<button class="btn" data-x>Cancel</button>'}<button class="btn pri" id="rcOk">Save details</button></div>`);
+  if($('#rcLater'))$('#rcLater').onclick=()=>{closeModal();toast('Kept in Receipts. Tap it there anytime to add the details.',4000);if(after)setTimeout(after,250)};
+  {let armed=false;$('#rcDel').onclick=async()=>{if(!armed){armed=true;$('#rcDel').innerHTML=icon('trash')+(isNew?' Tap again to discard':' Tap again to delete');return}
+    try{await libDel(d.id);if(S.libId===d.id)S.libId=null;LIB.docs=await libAll()}catch(e){toast('Could not delete');return}closeModal();toast(isNew?'Scan discarded':'Receipt deleted');
     if($('#sheet').classList.contains('on')){SH.rows=SH.rows.filter(x=>x.id!==d.id);if(SH.rows.length)renderSheet();else{$('#sheet').classList.remove('on');renderLib()}}else if($('#lib').classList.contains('on'))renderLib();
     if(after)setTimeout(after,250)}}
   if(after){const x=document.querySelector('#modal [data-x]');if(x)x.addEventListener('click',()=>setTimeout(after,250))}
