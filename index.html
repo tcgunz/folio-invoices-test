@@ -53,6 +53,14 @@ body.typing #props{visibility:hidden}
 #pages.hand .ov{touch-action:pan-x pan-y;cursor:grab}
 #pages.select .ov{cursor:default}
 #pages.tap .ov{touch-action:pan-x pan-y}
+#wmaSheet{position:fixed;left:0;right:0;bottom:0;z-index:40;background:#fff;border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.15);transform:translateY(105%);transition:transform .2s ease;max-height:48vh;display:flex;flex-direction:column;max-width:620px;margin:0 auto}
+#wmaSheet.on{transform:none}.wmHd{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}.wmHd .sp{flex:1}.wmHd .btn{height:36px}
+.wmBd{overflow:auto;padding:10px 14px 14px;display:grid;gap:10px}#wmaText{width:100%;box-sizing:border-box;height:40px;border:1px solid var(--line);border-radius:10px;padding:0 10px;font-size:16px;font-weight:600}
+.wmChips{display:flex;gap:6px;overflow-x:auto}.wmChips button{flex:none;border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:12px;background:#f8fafc}
+.wmRow{display:flex;align-items:center;gap:10px}.wmRow>span{width:72px;flex:none;font-size:13px;color:var(--muted)}.wmRow input[type=range]{flex:1;accent-color:var(--acc)}
+.wmSeg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:1}.wmSeg button{flex:1;height:34px;font-size:13px}.wmSeg button.on{background:var(--acc);color:#fff;font-weight:600}
+.wmDots{display:flex;gap:10px}.wmDots button{width:28px;height:28px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #d1d5db}.wmDots button.on{box-shadow:0 0 0 2.5px var(--acc)}
+body.wmaOpen #props{visibility:hidden}
 .plink{position:absolute;pointer-events:none;border-bottom:2px solid rgba(37,99,235,.45);background:rgba(37,99,235,.07);border-radius:2px}
 .pnum{position:absolute;bottom:-1px;right:-1px;transform:translateY(100%);font-size:11px;color:var(--muted);padding:2px 2px}
 #empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -393,7 +401,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <button data-m="open"><span class="ic" data-i="folder"></span>Open PDF…</button>
     <button data-m="add"><span class="ic" data-i="merge"></span>Add PDF (merge)…</button>
     <button data-m="blank"><span class="ic" data-i="filePlus"></span>Insert blank page</button>
-    <button data-m="wm"><span class="ic" data-i="wmark"></span>Remove watermarks…</button>
+    <button data-m="wm"><span class="ic" data-i="wmoff"></span>Remove watermarks…</button>
     <button data-m="ocr"><span class="ic" data-i="text"></span>Recognize text (OCR)</button>
     <button data-m="alltext"><span class="ic" data-i="copy"></span>Copy all text</button>
     <button data-m="form" id="mForm"><span class="ic" data-i="form"></span>Fill form fields</button>
@@ -408,7 +416,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 88<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 89<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -706,7 +714,8 @@ const IC={
  smaller:"M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7",
  copy:"M8 8h12v12H8zM4 16V4h12",
  edittext:"M4 7V5h11v2M9.5 5v13M7 18h5M14 15l5-5 2.5 2.5-5 5H14z",
- wmark:"M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11zM3 3l18 18",
+ wmark:"M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z",
+ wmoff:"M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11zM3 3l18 18",
  rotpage:"M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5M9 9h6v6H9z",
  share:"M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6",
  globe:"M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18",
@@ -751,7 +760,7 @@ const S={sources:[],pages:[],scale:1,tool:'hand',sel:null,pending:null,undo:[],r
   colors:{text:'#111827',pen:'#1d4ed8',hl:'#fde047',shape:'#dc2626',mark:'#111827'},widths:{pen:2,shape:2},fontSize:14};
 const INK=['#111827','#1d4ed8','#dc2626','#15803d','#7c3aed','#ea580c'];
 const HLC=['#fde047','#86efac','#93c5fd','#f9a8d4','#fdba74'];
-const TOOLS=[['hand','Scroll'],['select','Select'],['rotpage','Rotate'],'|',['edittext','Edit text'],['text','Add text'],['image','Add image'],['sign','Sign'],'|',['pen','Draw'],['hl','Highlight'],['wo','White-out'],'|',['check','Check'],['cross','Cross'],'|',['rect','Box'],['ellipse','Circle'],['line','Line'],['arrow','Arrow'],'|',['wmark','Watermarks']];
+const TOOLS=[['hand','Scroll'],['select','Select'],['rotpage','Rotate'],'|',['edittext','Edit text'],['text','Add text'],['image','Add image'],['sign','Sign'],'|',['pen','Draw'],['hl','Highlight'],['wo','White-out'],'|',['check','Check'],['cross','Cross'],'|',['rect','Box'],['ellipse','Circle'],['line','Line'],['arrow','Arrow'],'|',['wmark','Watermark']];
 const CKEY={text:'text',pen:'pen',hl:'hl',rect:'shape',ellipse:'shape',line:'shape',arrow:'shape',check:'mark',cross:'mark'};
 const getPg=id=>S.pages.find(p=>p.id===id);
 const rot=pg=>(pg.base+pg.extra)%360;
@@ -891,6 +900,7 @@ const mctx=document.createElement('canvas').getContext('2d');
 const FONT=px=>`${px}px Helvetica, Arial, sans-serif`;
 const EFONT=(a,px)=>`${a.i?'italic ':''}${a.b?'bold ':''}${px}px ${a.fam==='serif'?'"Times New Roman", Times, serif':a.fam==='mono'?'"Courier New", Courier, monospace':'Helvetica, Arial, sans-serif'}`;
 function drawA(ctx,a,vp,R){
+  if(a.t==='wm'){drawWm(ctx,a,vp);return}
   const sc=S.scale,V=p=>vp.convertToViewportPoint(p[0],p[1]);
   switch(a.t){
   case 'ink':ctx.strokeStyle=ctx.fillStyle=a.color;ctx.lineWidth=a.w*sc;ctx.lineCap='round';ctx.lineJoin='round';
@@ -917,6 +927,7 @@ function drawA(ctx,a,vp,R){
   }
 }
 function bbox(a,vp,R){
+  if(a.t==='wm')return[-99,-99,-98,-98];
   const sc=S.scale,V=p=>vp.convertToViewportPoint(p[0],p[1]);let pts=[],pad=6;
   if(a.t==='tblock'){for(const c of a.covers)[[c[0],c[1]],[c[2],c[3]],[c[0],c[3]],[c[2],c[1]]].forEach(p=>pts.push(V(p)));tbExtents(a).forEach(x=>{pts.push(V([x.x,x.y-a.size*.3]));pts.push(V([x.x+x.tw,x.y+a.size]))})}
   else if(a.t==='edit'){const r=a.ang*Math.PI/180,u=[Math.cos(r),Math.sin(r)],v=[-Math.sin(r),Math.cos(r)];
@@ -1045,7 +1056,7 @@ $('#tools').addEventListener('click',ev=>{const b=ev.target.closest('button[data
 function setTool(t){finishInline();
   if(t==='sign'){openSign();return}
   if(t==='image'){if(!S.pages.length)toast('Open a PDF first');return}
-  if(t==='wmark'){openWm();return}
+  if(t==='wmark'){wmMenu();return}
   if(t!=='place')S.pending=null;
   S.tool=t;
   $('#pages').className=((t==='hand'||t==='rotpage')?'hand':t==='select'?'select':t==='edittext'?'select':'')+(TAPT.has(t)?' tap':'');
@@ -1461,6 +1472,12 @@ async function exportPdf(opts){
   // pass 2: draw the edits
   for(let pi=0;pi<S.pages.length;pi++){const pg=S.pages[pi],page=pages[pi];
     for(const a of pg.annots){
+      if(a.t==='wm'){const fB=await stdFont({fam:'sans',b:true}),txt=[...a.text].map(ch=>{try{fB.encodeText(ch);return ch}catch(e){return '?'}}).join(''),cb=page.getCropBox(),R=rot(pg),side=R%180!==0;
+        const size=wmGeom(a,side?cb.height:cb.width,side?cb.width:cb.height,fB.widthOfTextAtSize(txt,1)),w=fB.widthOfTextAtSize(txt,size),ph=(R+a.ang)*Math.PI/180,c=Math.cos(ph),sn=Math.sin(ph);
+        const x=cb.x+cb.width/2-c*w/2+sn*size*.35,y=cb.y+cb.height/2-sn*w/2-c*size*.35;
+        page.pushOperators(PDFLib.PDFOperator.of('BDC',[PDFLib.PDFName.of('Artifact'),out.context.obj({Type:'Pagination',Subtype:'Watermark'})]));
+        page.drawText(txt,{x,y,size,font:fB,color:C(a.color),opacity:a.op,rotate:degrees(R+a.ang)});
+        page.pushOperators(PDFLib.PDFOperator.of('EMC'));continue}
       if(a.t==='ink'){for(const st of a.s){if(st.length===1){page.drawCircle({x:st[0][0],y:st[0][1],size:a.w/2,color:C(a.color)});continue}
         for(let i=1;i<st.length;i++)page.drawLine({start:{x:st[i-1][0],y:st[i-1][1]},end:{x:st[i][0],y:st[i][1]},thickness:a.w,color:C(a.color),lineCap:LineCapStyle.Round})}}
       else if(a.t==='hl'||a.t==='wo'||a.t==='rect'){const x=Math.min(a.a[0],a.b[0]),y=Math.min(a.a[1],a.b[1]),w=Math.abs(a.a[0]-a.b[0]),h=Math.abs(a.a[1]-a.b[1]);
@@ -2133,6 +2150,60 @@ function openEditText(a,ok,isNew){
   $('#eOk').onclick=()=>{o.text=$('#eTxt').value;closeModal();if(isNew&&o.text===a.text&&o.size===a.size&&o.color===a.color&&o.fam===a.fam&&o.b===a.b&&o.i===a.i)return;ok(o)};
 }
 
+/* ---------------- add a watermark ---------------- */
+const WMA={text:'CONFIDENTIAL',ang:45,op:.25,color:'#6b7280',k:1,scope:'all',before:null,snap:false,t:0};
+const WM_COL=['#6b7280','#111827','#dc2626','#1d4ed8','#15803d'],WM_PRE=['CONFIDENTIAL','DRAFT','COPY','PAID','SAMPLE','DO NOT COPY'];
+/* size so the text fills most of the page the way it's shown */
+function wmGeom(a,W,H,unitW){const L=a.ang?Math.min(W,H)*1.12:W*.78;return Math.max(6,Math.min(400,L/Math.max(unitW,.01)*a.k))}
+function drawWm(ctx,a,vp){const vb=vp.viewBox,[cx,cy]=vp.convertToViewportPoint((vb[0]+vb[2])/2,(vb[1]+vb[3])/2);
+  ctx.font='bold 100px Helvetica, Arial, sans-serif';const u=ctx.measureText(a.text).width/100,size=wmGeom(a,vp.width/vp.scale,vp.height/vp.scale,u)*vp.scale;
+  ctx.translate(cx,cy);ctx.rotate(-a.ang*Math.PI/180);ctx.globalAlpha=a.op;ctx.fillStyle=a.color;ctx.font=`bold ${size}px Helvetica, Arial, sans-serif`;ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText(a.text,0,size*.35)}
+function wmMenu(){
+  if(!S.pages.length){toast('Open a PDF first');return}
+  const has=S.pages.some(p=>p.annots.some(a=>a.t==='wm'));
+  openModal(`<h3>Watermarks</h3>
+   <div style="display:grid;gap:10px;margin-top:6px">
+    <button class="btn" id="wmAddB" style="height:auto;padding:12px;text-align:left;display:flex;gap:12px;align-items:center">${icon('wmark')}<span><b>${has?'Change the added watermark':'Add a watermark'}</b><br><small class="small">Words like DRAFT or CONFIDENTIAL across the page</small></span></button>
+    <button class="btn" id="wmRemB" style="height:auto;padding:12px;text-align:left;display:flex;gap:12px;align-items:center">${icon('wmoff')}<span><b>Remove watermarks</b><br><small class="small">Find watermarks already in the file</small></span></button>
+   </div><div class="btns"><button class="btn" data-x>Close</button></div>`);
+  $('#wmAddB').onclick=()=>{closeModal();openWmAdd()};$('#wmRemB').onclick=()=>{closeModal();openWm()}}
+function openWmAdd(){
+  const ex=S.pages.flatMap(p=>p.annots).find(a=>a.t==='wm');
+  if(ex)Object.assign(WMA,{text:ex.text,ang:ex.ang,op:ex.op,color:ex.color,k:ex.k,scope:S.pages.every(p=>p.annots.some(a=>a.t==='wm'))?'all':'cur'});
+  WMA.before=JSON.stringify(S.pages);WMA.snap=false;closeDrawers();
+  let sh=$('#wmaSheet');if(!sh){sh=document.createElement('div');sh.id='wmaSheet';document.body.appendChild(sh)}
+  const seg=(id,opts,val)=>`<div class="wmSeg" id="${id}">${opts.map(([v,l])=>`<button data-v="${v}" class="${String(v)===String(val)?'on':''}">${l}</button>`).join('')}</div>`;
+  sh.innerHTML=`<div class="wmHd"><b>${ex?'Change watermark':'Add a watermark'}</b><span class="sp"></span><button class="btn" id="wmaCancel">Cancel</button><button class="btn pri" id="wmaDone">Done</button></div>
+   <div class="wmBd">
+    <input id="wmaText" maxlength="40" value="${esc(WMA.text)}" placeholder="Watermark text" autocomplete="off">
+    <div class="wmChips">${WM_PRE.map(t=>`<button data-t="${t}">${t}</button>`).join('')}</div>
+    <div class="wmRow"><span>Direction</span>${seg('wmaAng',[[45,'Diagonal'],[0,'Across']],WMA.ang)}</div>
+    <div class="wmRow"><span>Size</span><input type="range" id="wmaK" min="30" max="130" step="5" value="${Math.round(WMA.k*100)}"></div>
+    <div class="wmRow"><span>Strength</span><input type="range" id="wmaOp" min="8" max="70" step="2" value="${Math.round(WMA.op*100)}"></div>
+    <div class="wmRow"><span>Colour</span><div class="wmDots">${WM_COL.map(c=>`<button data-c="${c}" style="background:${c}" class="${c===WMA.color?'on':''}"></button>`).join('')}</div></div>
+    <div class="wmRow"><span>Pages</span>${seg('wmaScope',[['all','All pages'],['cur','This page']],WMA.scope)}</div>
+    ${ex?'<button class="btn" id="wmaDel" style="color:#b91c1c;margin-top:4px">Remove the added watermark</button>':''}
+    <p class="small" style="margin:6px 0 0">Saved as a proper watermark, so Folio's Remove watermarks can take it off again later.</p>
+   </div>`;
+  sh.classList.add('on');document.body.classList.add('wmaOpen');
+  const later=()=>{clearTimeout(WMA.t);WMA.t=setTimeout(applyWmAdd,180)};
+  $('#wmaText').oninput=e=>{WMA.text=e.target.value;later()};
+  {let fr=false;const ti=$('#wmaText');ti.onfocus=()=>{fr=true;setTimeout(()=>{if(fr)ti.select()},0)};ti.onmouseup=ti.onclick=e=>{if(fr){fr=false;ti.select();e.preventDefault()}}}
+  sh.querySelectorAll('.wmChips button').forEach(b=>b.onclick=()=>{WMA.text=b.dataset.t;$('#wmaText').value=WMA.text;applyWmAdd()});
+  const segOn=(id,f)=>$('#'+id).querySelectorAll('button').forEach(b=>b.onclick=()=>{$('#'+id).querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));f(b.dataset.v);applyWmAdd()});
+  segOn('wmaAng',v=>WMA.ang=+v);segOn('wmaScope',v=>WMA.scope=v);
+  $('#wmaK').oninput=e=>{WMA.k=e.target.value/100;later()};$('#wmaOp').oninput=e=>{WMA.op=e.target.value/100;later()};
+  sh.querySelectorAll('.wmDots button').forEach(b=>b.onclick=()=>{WMA.color=b.dataset.c;sh.querySelectorAll('.wmDots button').forEach(x=>x.classList.toggle('on',x===b));applyWmAdd()});
+  $('#wmaDone').onclick=()=>{clearTimeout(WMA.t);applyWmAdd();closeWmAdd();if(WMA.snap)toast(WMA.text.trim()?'Watermark added. Save to keep it.':'Watermark removed')};
+  $('#wmaCancel').onclick=()=>{clearTimeout(WMA.t);if(WMA.snap){S.undo.pop();restore(WMA.before)}closeWmAdd()};
+  const del=$('#wmaDel');if(del)del.onclick=()=>{WMA.text='';$('#wmaText').value='';applyWmAdd();closeWmAdd();toast('Watermark removed')};
+  if(!ex)applyWmAdd()}
+function applyWmAdd(){
+  const t=WMA.text.trim();if(!WMA.snap){snapshot();WMA.snap=true}
+  setSel(null);S.msel=null;const cur=S.pages[S.cur]||S.pages[0];
+  S.pages.forEach(p=>{p.annots=p.annots.filter(a=>a.t!=='wm');if(t&&(WMA.scope==='all'||p===cur))p.annots.unshift({t:'wm',text:t,ang:WMA.ang,op:WMA.op,color:WMA.color,k:WMA.k})});
+  redrawAll();updateUI()}
+function closeWmAdd(){const sh=$('#wmaSheet');if(sh)sh.classList.remove('on');document.body.classList.remove('wmaOpen')}
 /* ---------------- watermark remover ---------------- */
 let wmState=null,wmT=null;
 async function openWm(){
