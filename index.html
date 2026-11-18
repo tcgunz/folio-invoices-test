@@ -3428,7 +3428,7 @@ body.noiv .ivx{display:none!important}
 .ivclrow small{color:var(--muted);grid-column:1/-1;margin-top:-2px}
 .ivclrow .ow{color:#b45309;font-weight:600}
 #invEd .sf .btn,#ivPrev .sf .btn{flex:1}
-#ivPrev{position:fixed;inset:0;z-index:60;background:#52525b;display:none;flex-direction:column}
+#ivPrev{position:fixed;inset:0;z-index:80;background:#52525b;display:none;flex-direction:column}
 #ivPrev.on{display:flex}
 #ivPrev .sh{background:#fff;border-bottom:1px solid var(--line)}
 #ivPrev .sf{background:#fff;border-top:1px solid var(--line)}
@@ -3468,6 +3468,9 @@ body.noiv .ivx{display:none!important}
 .mioFl span:first-child{flex:1;min-width:0}.mioFl .lk{color:#15803d;font-weight:700;flex:none}
 .mioF{display:flex;gap:12px;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line)}
 .mioF input{width:20px;height:20px;flex:none}.mioF small{display:block;color:var(--muted)}
+.icpf{display:flex;gap:8px;align-items:center;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.icpf .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.icpf .ic{color:#6d28d9}
 .ivcl{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .ivcl span{flex:1;min-width:0}
 .ivcl small{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -3498,7 +3501,7 @@ body.ci #menu [data-m=ivtoggle] .ic{color:#15803d}
   <div class="sf"><button class="btn" id="ieSave">Save</button><button class="btn" id="iePrev"><span class="ic" data-i="image"></span>Preview</button><button class="btn pri" id="iePdf"><span class="ic" data-i="share"></span>Send PDF</button></div>
 </div>
 <div id="mio">
-  <div class="sh"><button class="tb" id="mioBack"><span class="ic" data-i="back"></span></button><b id="mioTitle">Money in vs out</b></div>
+  <div class="sh"><button class="tb" id="mioBack"><span class="ic" data-i="back"></span></button><b id="mioTitle">Money in vs out</b><span class="sp"></span><button class="btn pri" id="mioExp" style="height:36px;flex:none;background:#15803d;border-color:#15803d">Export</button></div>
   <div style="flex:1;overflow:auto;min-height:0"><div class="chips" id="mioYears"></div><div id="mioBody" style="padding:6px 12px 20px"></div></div>
 </div>
 <div id="ivPrev">
@@ -3507,6 +3510,8 @@ body.ci #menu [data-m=ivtoggle] .ic{color:#15803d}
   <div class="sf"><button class="btn" id="ipEdit"><span class="ic" data-i="pen"></span>Edit</button><button class="btn pri" id="ipSend"><span class="ic" data-i="share"></span>Send</button></div>
 </div>
 <input type="file" id="bzLogoF" accept="image/*" hidden>
+<input type="file" id="icCamF" accept="image/*" capture="environment" hidden>
+<input type="file" id="icFileF" accept="image/*,application/pdf" hidden>
 <datalist id="ivClientList"></datalist>
 
 <script>
@@ -3589,7 +3594,7 @@ function ivRender(){
     L.querySelectorAll('tr[data-id]').forEach(r=>ivPress(r,r.dataset.id));
   }else{
     L.innerHTML=rows.map(v=>{const st=ivSt(v);
-      const sub=isInc(v)?[v.desc,v.method,ivFmtDate(v.date)].filter(Boolean).join(' · '):`${v.no} · ${ivFmtDate(v.date)}${st!=='paid'&&st!=='void'&&v.due?' · due '+ivFmtDate(v.due):''}`;
+      const sub=isInc(v)?[v.docId?'📎':'',v.desc,v.method,ivFmtDate(v.date),v.rcptNo||''].filter(Boolean).join(' · '):`${v.no} · ${ivFmtDate(v.date)}${st!=='paid'&&st!=='void'&&v.due?' · due '+ivFmtDate(v.due):''}`;
       return`<button class="ivcard ${st==='void'?'void':''} ${isInc(v)?'inc':''} ${isSel(v)?'sel':''}" data-id="${esc(v.id)}"><span class="ck">${isSel(v)?'✓':''}</span><span class="m"><b>${esc(ivWho(v)||(isInc(v)?'Income':'No client name'))}</b><small>${esc(sub)}</small></span><span class="r"><b>${esc(fmtMoney(ivAmt(v)))}</b><span class="ivst ${st}">${ivStLabel[st]}</span></span></button>`}).join('');
     L.querySelectorAll('.ivcard').forEach(b=>ivPress(b,b.dataset.id));
   }
@@ -3681,19 +3686,60 @@ function incEdit(id){
     <div class="fld" id="icTaxW" style="${inclTax||!rate?'':'display:none'}"><label>${esc(TX)} included</label><input type="text" id="icTax" inputmode="decimal" value="${esc(x.tax)}" placeholder="0.00"></div>
     <div class="fld"><label>How you were paid</label><select id="icMethod">${IV_METHODS.map(m=>`<option ${m===x.method?'selected':''}>${m}</option>`).join('')}</select></div>
     <div class="fld"><label>Note (optional)</label><input type="text" id="icNote" value="${esc(x.note||'')}" placeholder="Reference number, etc."></div>
+    <div class="fld"><label>Proof (optional)</label><div id="icProof"></div><p class="small" style="margin:4px 0 0">A photo of a cheque or deposit slip, an e-transfer screenshot, or a payout statement. It's kept in your Library's Income folder.</p></div>
    </div>
+   <button class="btn" id="icRcpt" style="width:100%;margin:2px 0 10px"><span class="ic" data-i="share"></span>${x.rcptNo?'Payment receipt '+esc(x.rcptNo)+' · view or send':'Make a receipt for the payer'}</button>
    <div class="btns">${old?'<button class="btn red l" id="icDel">Delete</button>':''}<button class="btn" data-x>Cancel</button><button class="btn pri" id="icSave">Save</button></div>`);
+  paintIcons($('#modal'));
   $('#ivClientList').innerHTML=ivClients().map(c=>`<option value="${esc(c.name)}">`).join('');
   const calc=()=>{if(!$('#icInclTax')||!$('#icInclTax').checked)return;const a=ivN($('#icAmt').value);$('#icTax').value=a?(Math.round(a*rate/(100+rate)*100)/100).toFixed(2):''};
   if($('#icInclTax'))$('#icInclTax').onchange=()=>{const on=$('#icInclTax').checked;$('#icTaxW').style.display=on?'':'none';if(on)calc();else $('#icTax').value=''};
   $('#icAmt').oninput=calc;
-  $('#icSave').onclick=()=>{const amt=ivN($('#icAmt').value);if(!amt){toast('Enter the amount you received');$('#icAmt').focus();return}
+  const readX=()=>{const amt=ivN($('#icAmt').value);if(!amt){toast('Enter the amount you received');$('#icAmt').focus();return false}
     x.date=$('#icDate').value||ivToday();x.from=$('#icFrom').value.trim();x.desc=$('#icDesc').value.trim();x.amount=amt.toFixed(2);
-    const tx=$('#icTax')?ivN($('#icTax').value):0;x.tax=tx?tx.toFixed(2):'';x.method=$('#icMethod').value;x.note=$('#icNote').value.trim();
-    ivIncLoad();const i=IV.inc.findIndex(y=>y.id===x.id);if(i>=0)IV.inc[i]=x;else IV.inc.push(x);ivIncStore();
+    const tx=$('#icTax')?ivN($('#icTax').value):0;x.tax=tx?tx.toFixed(2):'';x.method=$('#icMethod').value;x.note=$('#icNote').value.trim();return true};
+  const storeX=()=>{ivIncLoad();const i=IV.inc.findIndex(y=>y.id===x.id);if(i>=0)IV.inc[i]=x;else IV.inc.push(x);ivIncStore();if($('#inv').classList.contains('on'))ivRender();if($('#mio').classList.contains('on'))mioRender()};
+  /* proof: a photo or file, saved to the Library's Income folder and linked to this entry */
+  const proofUI=()=>{const P=$('#icProof');if(!P)return;
+    P.innerHTML=x.docId?`<div class="icpf"><span class="ic" data-i="image"></span><span class="nm">${esc(x.docName||'Attached proof')}</span><button class="btn" id="icPView" style="flex:none;height:34px">View</button><button class="btn red" id="icPDel" style="flex:none;height:34px">Remove</button></div>`
+      :`<div style="display:flex;gap:8px"><button class="btn" id="icPCam" style="flex:1"><span class="ic" data-i="camera"></span>Take photo</button><button class="btn" id="icPFile" style="flex:1"><span class="ic" data-i="folder"></span>Choose file</button></div>`;
+    paintIcons(P);
+    if(x.docId){$('#icPView').onclick=async()=>{try{const d=await libGet(x.docId);if(!d){toast("That file is no longer in your Library");x.docId='';x.docName='';proofUI();return}const b=new Uint8Array(await d.blob.arrayBuffer());ivShowPdf(b,d.name,'view')}catch(e){console.error(e);toast("Couldn't open it")}};
+      $('#icPDel').onclick=()=>{x.docId='';x.docName='';if(old)storeX();proofUI();toast("Removed from this entry. The file stays in your Library")}}
+    else{$('#icPCam').onclick=()=>{IV.proofFor=onProof;$('#icCamF').value='';$('#icCamF').click()};$('#icPFile').onclick=()=>{IV.proofFor=onProof;$('#icFileF').value='';$('#icFileF').click()}}};
+  const onProof=async f=>{busy('Adding proof…');try{const bytes=await ivFileToPdf(f);readX();const nm=`Income proof ${x.date||ivToday()} - ${x.from||'payment'}`.replace(/[\\/:*?"<>|]+/g,' ');
+      await libFolders();x.docId=await libSave(nm,'Income',bytes);x.docName=nm;if(old)storeX();unbusy();proofUI();toast('Proof attached')}catch(e){console.error(e);unbusy();toast("That file couldn't be added")}};
+  proofUI();
+  $('#icRcpt').onclick=()=>{if(!readX())return;if(!x.from){toast('Add who paid you first');$('#icFrom').focus();return}storeX();incReceipt(x)};
+  $('#icSave').onclick=()=>{if(!readX())return;const amt=ivN(x.amount);storeX();
     closeModal();toast(old?'Income updated':'Income recorded: '+fmtMoney(amt));if($('#inv').classList.contains('on'))ivRender();else invOpen();if($('#mio').classList.contains('on'))mioRender()};
   if($('#icDel'))$('#icDel').onclick=()=>{ivIncLoad();IV.inc=IV.inc.filter(y=>y.id!==x.id);ivIncStore();closeModal();toast('Income deleted');if($('#inv').classList.contains('on'))ivRender();if($('#mio').classList.contains('on'))mioRender()};
 }
+
+/* an image or PDF picked by the user, as PDF bytes (photos become a one-page PDF) */
+async function ivFileToPdf(f){const buf=new Uint8Array(await f.arrayBuffer());
+  if(f.type==='application/pdf'||/\.pdf$/i.test(f.name||''))return buf;
+  const url=URL.createObjectURL(f);try{const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});
+    const k=Math.min(1,2000/Math.max(im.naturalWidth,im.naturalHeight));const c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);
+    const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);
+    const jpg=Uint8Array.from(atob(c.toDataURL('image/jpeg',.85).split(',')[1]),ch=>ch.charCodeAt(0));
+    const {PDFDocument}=PDFLib;const doc=await PDFDocument.create();const img=await doc.embedJpg(jpg);const s=Math.min(1,612/img.width,792/img.height)*(img.width<612?1:1);
+    const w=Math.min(612,img.width),h=img.height*(w/img.width);const p=doc.addPage([w,h]);p.drawImage(img,{x:0,y:0,width:w,height:h});return await doc.save()}finally{URL.revokeObjectURL(url)}}
+$('#icCamF').onchange=e=>{const f=e.target.files&&e.target.files[0];if(f&&IV.proofFor)IV.proofFor(f)};
+$('#icFileF').onchange=e=>{const f=e.target.files&&e.target.files[0];if(f&&IV.proofFor)IV.proofFor(f)};
+/* a payment receipt for the person who paid: same look as invoices, numbered R-0001…, marked PAID */
+function incReceiptObj(x){const c=ivClients().find(k=>k.name.toLowerCase()===String(x.from||'').toLowerCase())||{};const amt=ivN(x.amount),tax=ivN(x.tax);
+  return{isReceipt:true,no:x.rcptNo,date:x.date,method:x.method,client:{name:x.from,email:c.email||'',address:c.address||''},items:[{desc:x.desc||'Payment received',qty:'1',rate:String(amt-tax)}],
+    amount:amt,taxFixed:tax,taxName:REGION.tax||'Tax',paid:true,paidOn:x.date,notes:[x.note?'Reference: '+x.note:'','Thank you for your payment.'].filter(Boolean).join('\n'),biz:x.biz}}
+async function incReceipt(x){
+  if(!x.rcptNo){const n=(parseInt(lsGet('foliotest.rcptno')||'0')||0)+1;lsSet('foliotest.rcptno',String(n));x.rcptNo='R-'+String(n).padStart(4,'0')}
+  if(!x.biz)x.biz=ivBizSnap();
+  ivIncLoad();const i=IV.inc.findIndex(y=>y.id===x.id);if(i>=0)IV.inc[i]=x;else IV.inc.push(x);ivIncStore();if($('#inv').classList.contains('on'))ivRender();
+  closeModal();busy('Making the receipt…');
+  try{const bytes=await ivPdf(incReceiptObj(x));unbusy();const safe=s=>String(s||'').replace(/[\\/:*?"<>|]+/g,' ').trim();const name=`Receipt ${x.rcptNo} - ${safe(x.from)}.pdf`;
+    ivShowPdf(bytes,'Receipt '+x.rcptNo,'receipt',async b=>{busy('Getting it ready…');try{if(!x.rcptSaved){try{await libFolders();await libSave(name,'Income',b);x.rcptSaved=1;ivIncLoad();const j=IV.inc.findIndex(y=>y.id===x.id);if(j>=0){IV.inc[j]=x;ivIncStore()}}catch(e){console.warn(e)}}
+      const thumb=await ivThumb(b);unbusy();readyShare([{name,bytes:b,type:'application/pdf'}],name);if(thumb){const m=$('#modal');const h3=m.querySelector('h3');const im=document.createElement('img');im.className='rsthumb';im.alt='The receipt';im.src=thumb;h3&&h3.after(im)}}catch(e){console.error(e);unbusy();toast('Could not get it ready')}})}
+  catch(e){console.error(e);unbusy();toast('Could not make the receipt')}}
 
 /* ---- money in vs out: income (paid invoices + other income) against receipts ---- */
 const MIO={year:String(new Date().getFullYear()),rc:[],all:[]};
@@ -3740,6 +3786,41 @@ function mioRender(){ivLoad();ivIncLoad();const FS=mioFolders();MIO.rc=MIO.all.f
    <p class="small" style="text-align:center;margin:10px 0">Money in: paid invoices (by the date paid) and recorded income. Money out: receipts in the folders above, including tips.</p>`);
   if($('#mioFBtn'))$('#mioFBtn').onclick=mioPickFolders;
 }
+/* every line behind the totals, for the export */
+function mioData(year){ivLoad();ivIncLoad();const FS=mioFolders();const rc=MIO.all.filter(d=>!FS||FS.includes(d.folder||'Library'));
+  const ins=[];IV.list.forEach(v=>{if(v.void||!v.paid)return;const d=v.paidOn||v.date;if(!String(d).startsWith(year))return;const t=ivTotals(v);ins.push({d,type:'Invoice',ref:v.no,who:ivWho(v),what:'',how:'',amt:t.total,tax:t.tax,proof:''})});
+  IV.inc.forEach(x=>{if(!String(x.date).startsWith(year))return;ins.push({d:x.date,type:'Income',ref:x.rcptNo||'',who:x.from||'',what:x.desc||'',how:x.method||'',amt:ivAmt(x),tax:ivTaxOf(x),proof:x.docId?'Yes':''})});
+  const outs=rc.filter(doc=>String(doc.receipt.date).startsWith(year)).map(doc=>({d:doc.receipt.date,who:doc.receipt.vendor||doc.name||'',cat:doc.receipt.category||'',folder:doc.folder||'Library',amt:rcCharged(doc.receipt),tax:ivN(doc.receipt.tax)}));
+  ins.sort((a,b)=>a.d.localeCompare(b.d));outs.sort((a,b)=>a.d.localeCompare(b.d));
+  const M=[];for(let m=1;m<=12;m++){const k=year+'-'+String(m).padStart(2,'0');M.push({k,in:0,out:0,tin:0,tout:0})}
+  ins.forEach(r=>{const x=M.find(z=>r.d.startsWith(z.k));if(x){x.in+=r.amt;x.tin+=r.tax}});outs.forEach(r=>{const x=M.find(z=>r.d.startsWith(z.k));if(x){x.out+=r.amt;x.tout+=r.tax}});
+  return{ins,outs,M,folders:FS}}
+function mioExport(){const y=MIO.year;const D=mioData(y);if(!D.ins.length&&!D.outs.length){toast('Nothing for '+y+' yet');return}
+  openModal(`<h3>Export money in vs out · ${esc(y)}</h3><p class="small" style="margin-top:-6px">For your accountant or your own records. Both open in Excel and Google Sheets.</p>
+   <button class="big" id="mxX"><span class="ic mio" data-i="grid"></span><span><b>Excel (.xlsx) · recommended</b><small>Summary by month, plus every payment in and every receipt out</small></span></button>
+   <button class="big" id="mxC"><span class="ic mio" data-i="list"></span><span><b>CSV</b><small>One list of everything in and out, for other software</small></span></button>
+   <div class="btns"><button class="btn" data-x>Cancel</button></div>`);
+  $('#mxX').onclick=()=>{closeModal();mioXlsx(y,D)};$('#mxC').onclick=()=>{closeModal();mioCsv(y,D)}}
+function mioXlsx(y,D){const C=REGION.cur,TX=REGION.tax||'Tax',money=x=>({v:Math.round(x*100)/100,t:'n',s:1}),bm=x=>({v:Math.round(x*100)/100,t:'n',s:3}),B=s=>({v:s,t:'s',s:2}),dt=d=>d?{v:d,t:'d'}:'';
+  const mn=k=>{try{return new Date(k+'-15T12:00:00').toLocaleDateString('en-CA',{month:'long'})}catch(e){return k}};
+  const S=[['Month',`Money in (${C})`,`Money out (${C})`,`Profit (${C})`,`${TX} collected (${C})`,`${TX} paid (${C})`,`${TX} difference (${C})`].map(B)];let T={in:0,out:0,tin:0,tout:0};
+  D.M.forEach(x=>{S.push([mn(x.k),money(x.in),money(x.out),money(x.in-x.out),money(x.tin),money(x.tout),money(x.tin-x.tout)]);T.in+=x.in;T.out+=x.out;T.tin+=x.tin;T.tout+=x.tout});
+  S.push([B('Total '+y),bm(T.in),bm(T.out),bm(T.in-T.out),bm(T.tin),bm(T.tout),bm(T.tin-T.tout)]);S.push([]);
+  S.push(['Money in: paid invoices (by the date paid) and recorded income.']);
+  S.push(['Money out: receipts'+(D.folders?' in these folders: '+D.folders.join(', '):' in all folders')+', including tips.']);
+  S.push([`${TX} figures are an estimate for your records, not for filing. Check with your accountant.`]);
+  const I=[['Date','Type','Number','From / client','What for','Paid by',`Amount (${C})`,`${TX} (${C})`,'Proof attached'].map(B)];D.ins.forEach(r=>I.push([dt(r.d),r.type,r.ref,r.who,r.what,r.how,money(r.amt),money(r.tax),r.proof]));
+  I.push([B('Total'),'','','','','',bm(D.ins.reduce((a,r)=>a+r.amt,0)),bm(D.ins.reduce((a,r)=>a+r.tax,0))]);
+  const O=[['Date','Store / vendor','Category','Folder',`Amount (${C})`,`${TX} (${C})`].map(B)];D.outs.forEach(r=>O.push([dt(r.d),r.who,r.cat,r.folder,money(r.amt),money(r.tax)]));
+  O.push([B('Total'),'','','',bm(D.outs.reduce((a,r)=>a+r.amt,0)),bm(D.outs.reduce((a,r)=>a+r.tax,0))]);
+  const sheets=[{name:'Summary '+y,cols:[14,16,16,16,18,16,18],rows:S},{name:'Money in',freeze:true,cols:[12,10,11,26,26,16,14,12,10],rows:I},{name:'Money out',freeze:true,cols:[12,28,18,20,14,12],rows:O}];
+  try{const bytes=buildXlsx(sheets);readyShare([{name:`Money in vs out ${y}.xlsx`,bytes,type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}],'Money in vs out '+y)}catch(e){console.error(e);toast('Could not make the spreadsheet')}}
+function mioCsv(y,D){const q=s=>{s=String(s==null?'':s);return/[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+  const L=[['In or out','Date','Type','Number','From / store','What for / category','Paid by / folder','Amount',(REGION.tax||'Tax')].join(',')];
+  D.ins.forEach(r=>L.push(['In',r.d,r.type,r.ref,r.who,r.what,r.how,r.amt.toFixed(2),r.tax.toFixed(2)].map(q).join(',')));
+  D.outs.forEach(r=>L.push(['Out',r.d,'Receipt','',r.who,r.cat,r.folder,r.amt.toFixed(2),r.tax.toFixed(2)].map(q).join(',')));
+  readyShare([{name:`Money in vs out ${y}.csv`,bytes:new TextEncoder().encode('\ufeff'+L.join('\r\n')),type:'text/csv'}],'Money in vs out '+y)}
+$('#mioExp').onclick=mioExport;
 $('#mioBack').onclick=()=>$('#mio').classList.remove('on');
 
 /* ---- export: invoices and other income ---- */
@@ -3937,8 +4018,16 @@ async function ivRenderPages(bytes,scale,max){
   try{pdf.destroy()}catch(e){}return out}
 async function ivThumb(bytes){try{const[c]=await ivRenderPages(bytes,1.1,1);return c?c.toDataURL('image/jpeg',.85):''}catch(e){return''}}
 IV.prevBytes=null;
+/* the preview screen is shared: an invoice (Edit + Send), a payment receipt (Close + Send) or an attached file (Close) */
+IV.prevMode='invoice';IV.prevSend=null;
+async function ivShowPdf(bytes,title,mode,onSend){
+  IV.prevMode=mode;IV.prevSend=onSend||null;IV.prevBytes=bytes;const B=$('#ipBody');
+  $('#ipTitle').textContent=title;$('#ipEdit').innerHTML=mode==='invoice'?icon('pen')+'Edit':'Close';$('#ipSend').style.display=onSend||mode==='invoice'?'':'none';
+  $('#ivPrev').classList.remove('zoom');$('#ivPrev').classList.add('on');paintIcons($('#ivPrev'));B.innerHTML='<p class="msg">Loading…</p>';
+  try{const dpr=Math.min(3,window.devicePixelRatio||1);const pages=await ivRenderPages(bytes,Math.max(1.5,(B.clientWidth*dpr*2)/612));B.innerHTML='';pages.forEach(c=>B.appendChild(c))}
+  catch(e){console.error(e);B.innerHTML=`<p class="msg">${e&&e.message==='nopdfjs'?"The preview needs the PDF engine, which didn't load. Check your connection and reopen Folio.":"Couldn't show this file."}</p>`}}
 $('#iePrev').onclick=async()=>{
-  ivRead();const v=IV.cur;
+  ivRead();const v=IV.cur;IV.prevMode='invoice';IV.prevSend=null;$('#ipEdit').innerHTML=icon('pen')+'Edit';$('#ipSend').style.display='';
   if(!v.client.name&&!v.items.some(it=>it.desc||parseFloat(it.rate))){toast('Fill in the invoice first, then preview it');return}
   if(IV.dirty)ivCommit();
   const B=$('#ipBody');B.innerHTML='<p class="msg">Making the preview…</p>';$('#ipTitle').textContent='Preview · '+v.no;
@@ -3950,14 +4039,14 @@ const ivPrevClose=()=>{$('#ivPrev').classList.remove('on');$('#ipBody').innerHTM
 $('#ipBack').onclick=ivPrevClose;$('#ipEdit').onclick=ivPrevClose;
 $('#ipZoom').onclick=()=>{const z=$('#ivPrev').classList.toggle('zoom');$('#ipZoom').innerHTML=icon(z?'minus':'plus')};
 $('#ipBody').addEventListener('dblclick',()=>$('#ipZoom').click());
-$('#ipSend').onclick=()=>{if(!ivCheck()){ivPrevClose();return}const b=IV.prevBytes;ivPrevClose();ivSend(b)};
+$('#ipSend').onclick=()=>{const b=IV.prevBytes;if(IV.prevMode!=='invoice'){const f=IV.prevSend;ivPrevClose();if(f)f(b);return}if(!ivCheck()){ivPrevClose();return}ivPrevClose();ivSend(b)};
 
 /* ---- the PDF itself ---- */
 const ivHexRgb=h=>{const m=/^#?([0-9a-f]{6})$/i.exec(String(h||''));const n=m?parseInt(m[1],16):0x4338ca;return[(n>>16&255)/255,(n>>8&255)/255,(n&255)/255]};
 async function ivPdf(v){
   const {PDFDocument,StandardFonts,rgb}=PDFLib;const doc=await PDFDocument.create();
   const F=await doc.embedFont(StandardFonts.Helvetica),B=await doc.embedFont(StandardFonts.HelveticaBold);
-  doc.setTitle('Invoice '+v.no);doc.setCreator('Folio');doc.setProducer('Folio');
+  doc.setTitle((v.isReceipt?'Receipt ':'Invoice ')+v.no);doc.setCreator('Folio');doc.setProducer('Folio');
   const biz=ivBizOf(v),W=612,H=792,M=50,ink=rgb(.09,.1,.12),mut=rgb(.42,.45,.5),line=rgb(.85,.87,.9);
   const [ar,ag,ab]=ivHexRgb(biz.color),acc=rgb(ar,ag,ab),tint=rgb(1-(1-ar)*.1,1-(1-ag)*.1,1-(1-ab)*.1);
   const okCh=new Map();const clean=(s,f)=>{s=String(s==null?'':s).replace(/[   ]/g,' ');let o='';for(const ch of s){if(!okCh.has(ch)){let ok=true;try{f.widthOfTextAtSize(ch,10)}catch(e){ok=false}okCh.set(ch,ok)}o+=okCh.get(ch)?ch:'?'}return o};
@@ -3971,11 +4060,11 @@ async function ivPdf(v){
       const LS={s:[150,40],m:[240,66],l:[320,100]}[biz.logoSize||'m']||[240,66];const k=Math.min(LS[0]/img.width,LS[1]/img.height);const w=img.width*k,h=img.height*k;page.drawImage(img,{x:M,y:ly-h+12,width:w,height:h});ly-=h+8}catch(e){console.warn('logo',e)}}
   if(!(biz.logo&&biz.logoHasName)){txt(biz.name||'',M,ly,{bold:true,size:16});ly-=18}else ly-=4;
   [].concat(wrap(biz.address,F,9.5,250),[biz.email,biz.phone].filter(Boolean),biz.taxNo?[(REGION.tax||'Tax')+' no. '+biz.taxNo]:[]).forEach(l=>{if(l){txt(l,M,ly,{size:9.5,color:mut});ly-=13}});
-  txt('INVOICE',W-M,y-2,{bold:true,size:24,color:acc,right:true});
-  let ry=y-26;[['Invoice no.',v.no],['Date',ivFmtDate(v.date)],v.due&&!v.paid?['Due',ivFmtDate(v.due)]:null].filter(Boolean).forEach(([k,val])=>{txt(k,W-M-110,ry,{size:9.5,color:mut,right:true});txt(val,W-M,ry,{size:9.5,bold:true,right:true});ry-=14});
+  txt(v.isReceipt?'RECEIPT':'INVOICE',W-M,y-2,{bold:true,size:24,color:acc,right:true});
+  let ry=y-26;(v.isReceipt?[['Receipt no.',v.no],['Date paid',ivFmtDate(v.date)],v.method?['Paid by',v.method]:null]:[['Invoice no.',v.no],['Date',ivFmtDate(v.date)],v.due&&!v.paid?['Due',ivFmtDate(v.due)]:null]).filter(Boolean).forEach(([k,val])=>{txt(k,W-M-110,ry,{size:9.5,color:mut,right:true});txt(val,W-M,ry,{size:9.5,bold:true,right:true});ry-=14});
   y=Math.min(ly,ry)-22;
   /* bill to */
-  txt('BILL TO',M,y,{bold:true,size:9,color:acc});y-=15;txt(v.client.name,M,y,{bold:true,size:11});y-=14;
+  txt(v.isReceipt?'RECEIVED FROM':'BILL TO',M,y,{bold:true,size:9,color:acc});y-=15;txt(v.client.name,M,y,{bold:true,size:11});y-=14;
   [].concat(v.client.email?[v.client.email]:[],wrap(v.client.address,F,9.5,300)).forEach(l=>{if(l){txt(l,M,y,{size:9.5,color:mut});y-=13}});
   y-=16;
   /* table */
@@ -3988,12 +4077,12 @@ async function ivPdf(v){
     lines.forEach((l,k)=>txt(l,M+8,y-k*13,{size:10}));txt(String(q),cQ,y,{right:true});txt(money(r),cR,y,{right:true});txt(money(q*r),cA-8,y,{right:true});
     y-=lines.length*13+4;page.drawLine({start:{x:M,y:y+2},end:{x:W-M,y:y+2},thickness:.6,color:line});y-=10}
   /* totals */
-  const t=ivTotals(v);if(y<M+110){page=doc.addPage([W,H]);y=H-M}
+  const t=v.isReceipt?{sub:v.amount-v.taxFixed,tax:v.taxFixed,total:v.amount}:ivTotals(v);if(y<M+110){page=doc.addPage([W,H]);y=H-M}
   y-=4;const tl=W-M-170;
   txt('Subtotal',tl,y,{color:mut});txt(money(t.sub),cA-8,y,{right:true});y-=16;
-  txt(`${v.taxName||'Tax'} (${parseFloat(v.taxRate)||0}%)`,tl,y,{color:mut});txt(money(t.tax),cA-8,y,{right:true});y-=10;
+  txt(v.isReceipt?`${v.taxName||'Tax'} included`:`${v.taxName||'Tax'} (${parseFloat(v.taxRate)||0}%)`,tl,y,{color:mut});txt(money(t.tax),cA-8,y,{right:true});y-=10;
   page.drawLine({start:{x:tl,y},end:{x:W-M,y},thickness:1,color:ink});y-=18;
-  txt(v.paid?'Total (paid)':'Total due',tl,y,{bold:true,size:12});txt(money(t.total),cA-8,y,{bold:true,size:12,right:true});y-=30;
+  txt(v.isReceipt?'Total paid':v.paid?'Total (paid)':'Total due',tl,y,{bold:true,size:12});txt(money(t.total),cA-8,y,{bold:true,size:12,right:true});y-=30;
   const stamp=(s,col,sub)=>{const sz=40,w=B.widthOfTextAtSize(s,sz);page.drawText(s,{x:M+20,y:y+20,size:sz,font:B,color:col,opacity:.35});if(sub)txt(sub,M+20+w+12,y+32,{size:9.5,color:col})};
   if(v.void)stamp('VOID',rgb(.8,.1,.1),'This invoice has been cancelled');
   else if(v.paid)stamp('PAID',rgb(.13,.55,.3),v.paidOn?'Paid on '+ivFmtDate(v.paidOn):'');
