@@ -89,6 +89,10 @@ body.norc .rcx{display:none!important}
 #props .val{font-size:12px;color:var(--muted);min-width:34px}
 .link{color:var(--acc);font-weight:600}
 #tools{display:flex;overflow-x:auto;padding:4px 6px;gap:2px;scrollbar-width:none}
+/* more tools off to the side: the edge fades so it's clear the row scrolls */
+#tools.mr{-webkit-mask-image:linear-gradient(to right,#000 82%,transparent);mask-image:linear-gradient(to right,#000 82%,transparent)}
+#tools.ml{-webkit-mask-image:linear-gradient(to left,#000 82%,transparent);mask-image:linear-gradient(to left,#000 82%,transparent)}
+#tools.ml.mr{-webkit-mask-image:linear-gradient(to right,transparent,#000 14%,#000 86%,transparent);mask-image:linear-gradient(to right,transparent,#000 14%,#000 86%,transparent)}
 #tools::-webkit-scrollbar{display:none}
 #tools button{min-width:62px;height:54px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:#4b5563;flex:none}
 #tools button.on{background:var(--acc2);color:var(--acc);font-weight:600}
@@ -131,6 +135,9 @@ body.norc .rcx{display:none!important}
 .modal .row label{font-size:13px;color:var(--muted);min-width:40px}
 .modal .row input[type=range]{flex:1;accent-color:var(--acc)}
 .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+/* a form's main buttons stay in view at the bottom of the box, even on short landscape screens */
+.modal>.btns:last-child{position:sticky;bottom:-18px;background:inherit;margin:16px -18px -18px;padding:10px 18px 14px;z-index:3;box-shadow:0 -8px 12px -10px rgba(0,0,0,.25)}
+@media (max-height:520px){#modalWrap{padding:6px}.modal{max-height:calc(100dvh - 12px);padding:14px 18px 18px}#sigPad{height:120px}#sigPad.ini{height:110px}.modal h3{margin-bottom:8px}}
 .btn{height:40px;padding:0 16px;border-radius:10px;font-weight:600;border:1px solid var(--line);background:#fff}
 .btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
 .btn.red{color:var(--danger)}
@@ -424,11 +431,11 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <button data-m="lib"><span class="ic" data-i="books"></span>Library</button>
     <button data-m="theme"><span class="ic" data-i="palette"></span>Theme</button>
     <button data-m="region"><span class="ic" data-i="globe"></span>Region &amp; currency</button>
-    <button data-m="homeset"><span class="ic" data-i="grid"></span>Home screen…</button>
+    <button data-m="homeset"><span class="ic" data-i="grid"></span>Home screen sections…</button>
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 100<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 101<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -1061,7 +1068,10 @@ function onMove(ev,e){
     const[sx,sy]=loc(ce,e);
     if(drag.mode==='move'){const a=pg.annots[S.sel.i];const p0=vp.convertToPdfPoint(...drag.last),p1=vp.convertToPdfPoint(sx,sy);moveA(a,p1[0]-p0[0],p1[1]-p0[1]);drag.last=[sx,sy];drag.moved=true}
     else if(drag.mode==='ink'){if(Math.hypot(sx-drag.last[0],sy-drag.last[1])<1.2)continue;drag.a.s[0].push(vp.convertToPdfPoint(sx,sy));drag.last=[sx,sy]}
-    else if(drag.mode==='shape'){drag.a.b=vp.convertToPdfPoint(sx,sy);drag.end=[sx,sy]}
+    else if(drag.mode==='shape'){const p=vp.convertToPdfPoint(sx,sy);drag.end=[sx,sy];
+      // highlighter: a straight swipe along a line of text still highlights a full line's height
+      if(drag.a.t==='hl'){const s=drag.s0||(drag.s0=drag.a.a.slice());if(Math.abs(p[1]-s[1])<10){const yc=(s[1]+p[1])/2;drag.a.a=[s[0],yc-6.5];drag.a.b=[p[0],yc+6.5]}else{drag.a.a=s;drag.a.b=p}}
+      else drag.a.b=p}
     else if(drag.mode==='marq'){drag.end=[sx,sy]}
     else if(drag.mode==='resize'){const a=pg.annots[S.sel.i];if(a){const k=Math.max(.08,Math.min(12,Math.hypot(sx-drag.cs[0],sy-drag.cs[1])/drag.d0));scaleFrom(drag.orig,a,k,drag.c);drag.moved=true}}
   }
@@ -1080,8 +1090,11 @@ function onUp(ev,e){
 
 /* ---------------- tools UI ---------------- */
 function renderTools(){
+  requestAnimationFrame(toolsEdge);
   $('#tools').innerHTML=TOOLS.map(t=>t==='|'?'<span class="tsep"></span>':`<button data-t="${t[0]}" class="${S.tool===t[0]?'on':''}">${icon(t[0])}<span>${t[1]}</span></button>`).join('');
 }
+function toolsEdge(){const T=$('#tools');if(!T)return;T.classList.toggle('ml',T.scrollLeft>4);T.classList.toggle('mr',T.scrollLeft+T.clientWidth<T.scrollWidth-4)}
+$('#tools').addEventListener('scroll',toolsEdge,{passive:true});addEventListener('resize',toolsEdge);setTimeout(toolsEdge,300);
 $('#tools').addEventListener('click',ev=>{const b=ev.target.closest('button[data-t]');if(b)setTool(b.dataset.t)});
 function setTool(t){finishInline();if(t==='text')t='edittext';
   if(t==='sign'){openSign();return}
@@ -1654,7 +1667,7 @@ V.addEventListener('drop',e=>{e.preventDefault();const fs=[...e.dataTransfer.fil
 /* ================= SCANNER ================= */
 const SC={pages:[],edit:-1,q:null,rot:0,filter:'auto',drag:-1};
 const FILTERS=[['auto','Auto'],['gray','Grayscale'],['bw','Black & white'],['orig','Original']];
-function openScanner(mode){SC.mode=mode==='receipt'?'receipt':'doc';closeDrawers();$('#scTitle').textContent=SC.mode==='receipt'?'Scan receipts':'Scanner';$('#scan').classList.add('on');renderScan()}
+function openScanner(mode){SC.mode=mode==='receipt'?'receipt':'doc';closeDrawers();$('#scTitle').textContent=SC.mode==='receipt'?'Scan receipts':'Scanner';{const b=$('#scSave');b.lastChild.textContent=SC.mode==='receipt'?'Next':'Save PDF'}$('#scan').classList.add('on');renderScan()}
 /* the scanner borrowed by another screen (income proof): it gets its own pages, opens above that screen's form,
    and hands back the finished PDF instead of saving it. The pages already in the scanner are kept for later. */
 function openScanFor(opt){
@@ -2467,7 +2480,7 @@ async function showAllText(){
 /* ---------------- scanner: save / open options ---------------- */
 function openScanSave(mode){
   if(!SC.pages.length)return;let look='keep',ocr=lsGet('foliotest.ocr')!=='0';
-  const m=openModal(`<h3>${mode==='edit'?'Open scan in editor':'Save scan as PDF'}</h3>
+  const m=openModal(`<h3>${mode==='edit'?'Open scan in editor':SC.mode==='receipt'?'Save receipt':'Save scan as PDF'}</h3>
    ${mode==='save'?`<input type="text" id="ssName" value="${esc(scanName())}">`:''}
    ${mode==='save'?folderPickerHTML(SC.mode==='receipt'?(LIB.folders.find(isReceiptFolder)||'Receipts'):(lsGet('foliotest.lastFolder.scan')&&LIB.folders.includes(lsGet('foliotest.lastFolder.scan'))&&!isReceiptFolder(lsGet('foliotest.lastFolder.scan'))?lsGet('foliotest.lastFolder.scan'):'Documents'),true)+`<label class="row" style="gap:10px;margin:8px 0 0"><input type="checkbox" id="ssDl" ${lsGet('foliotest.dl.scan')!=='0'?'checked':''} style="width:18px;height:18px;accent-color:var(--acc)"><span>Also download to this phone</span></label>`:''}
    <p class="small" style="margin:12px 0 6px">File size</p>
@@ -2483,7 +2496,7 @@ function openScanSave(mode){
     <button class="btn" data-sp="0" style="justify-content:flex-start;text-align:left;height:auto;padding:8px 12px;display:block"><b>One receipt, several pages</b><br><span class="small">For a long receipt photographed in parts.</span></button>
    </div></div>`:''}
    <label class="row" style="gap:10px;align-items:flex-start;margin-top:16px"><input type="checkbox" id="ssOcr" ${ocr?'checked':''} style="margin-top:3px;width:18px;height:18px;accent-color:var(--acc)"><span><b>Make text readable &amp; editable</b><br><span class="small">Recognises the words so you can search, copy, select and edit them. Needs internet and takes a few seconds per page.</span></span></label>
-   <div class="btns"><button class="btn" data-x>Cancel</button><button class="btn pri" id="ssGo">${mode==='edit'?'Open':'Save PDF'}</button></div>`);
+   <div class="btns"><button class="btn" data-x>Cancel</button><button class="btn pri" id="ssGo">${mode==='edit'?'Open':SC.mode==='receipt'?'Save &amp; read':'Save PDF'}</button></div>`);
   folderPickerWire();
   const isRc=()=>{const f=$('#fpSel')?folderPickerValue():'';return f?isReceiptFolder(f):SC.mode==='receipt'};
   let split=true;const spBox=$('#ssSplitBox');
@@ -2789,18 +2802,22 @@ function canShareFiles(){try{return!!(navigator.canShare&&navigator.canShare({fi
 /* files: [{name, bytes|blob, type}] — must be called straight from a tap */
 async function shareFiles(files,title){
   const F=files.map(f=>new File([f.blob||f.bytes],f.name,{type:f.type||'application/pdf'}));
-  try{if(navigator.canShare&&navigator.canShare({files:F})){await navigator.share({files:F,title:title||F[0].name});return true}}
-  catch(e){if(e&&e.name==='AbortError')return true;console.warn(e)}
+  try{if(navigator.canShare&&navigator.canShare({files:F})){await navigator.share({files:F,title:title||F[0].name});return 'ok'}}
+  catch(e){if(e&&e.name==='AbortError')return 'abort';console.warn(e)}
   toast("Sharing isn't available here, so it was downloaded instead",4000);
   for(const f of files)offerDownload(f.name,f.bytes||new Uint8Array(await f.blob.arrayBuffer()),f.type||'application/pdf');return false}
 /* a finished file, ready to send: one tap on Share opens the share menu */
-function readyShare(files,title){
-  const sz=f=>fmtSize((f.bytes&&(f.bytes.length||f.bytes.byteLength))||(f.blob&&f.blob.size)||0);
+/* onDone(how) runs only once the file has really left: shared ('share') or saved to the device ('save'); not when the share menu is cancelled */
+function canShareFiles(){try{return!!(navigator.canShare&&navigator.canShare({files:[new File([new Uint8Array(1)],'x.pdf',{type:'application/pdf'})]}))}catch(e){return false}}
+function readyShare(files,title,onDone){
+  const sz=f=>fmtSize((f.bytes&&(f.bytes.length||f.bytes.byteLength))||(f.blob&&f.blob.size)||0),can=canShareFiles();
   openModal(`<h3>Ready to save or send</h3><div style="margin:-4px 0 10px">${files.map(f=>`<div class="row" style="gap:10px;padding:8px 0;border-bottom:1px solid var(--line)">${icon('form')}<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span><span class="small">${sz(f)}</span></div>`).join('')}</div>
-   <p class="small"><b>Drive, email &amp; more</b> opens your phone's share menu: pick Google Drive (then choose the folder), OneDrive, Dropbox, Gmail, Messages and more. <b>Save to this phone</b> puts it in your Downloads folder.</p>
-   <div class="btns"><button class="btn" id="rsDl">${icon('download')} Save to this phone</button><button class="btn pri" id="rsSh">${icon('share')} Drive, email &amp; more</button></div>`);
-  $('#rsSh').onclick=async()=>{const ok=await shareFiles(files,title);if(ok)closeModal()};
-  $('#rsDl').onclick=async()=>{closeModal();for(const f of files)offerDownload(f.name,f.bytes||new Uint8Array(await f.blob.arrayBuffer()),f.type||'application/pdf')}}
+   ${can?`<p class="small"><b>Drive, email &amp; more</b> opens your phone's share menu: pick Google Drive (then choose the folder), OneDrive, Dropbox, Gmail, Messages and more. <b>Save to this phone</b> puts it in your Downloads folder.</p>
+   <div class="btns"><button class="btn" id="rsDl">${icon('download')} Save to this phone</button><button class="btn pri" id="rsSh">${icon('share')} Drive, email &amp; more</button></div>`
+   :`<p class="small">This browser can't open a share menu. <b>Save</b> puts the file in your Downloads folder; then attach it to an email or upload it to Drive.</p>
+   <div class="btns"><button class="btn" data-x>Cancel</button><button class="btn pri" id="rsDl">${icon('download')} Save</button></div>`}`);
+  if(can)$('#rsSh').onclick=async()=>{const r=await shareFiles(files,title);if(r==='abort')return;closeModal();onDone&&onDone(r==='ok'?'share':'save')};
+  $('#rsDl').onclick=async()=>{closeModal();for(const f of files)offerDownload(f.name,f.bytes||new Uint8Array(await f.blob.arrayBuffer()),f.type||'application/pdf');onDone&&onDone('save')}}
 const deliver=(name,bytes,type)=>EXP.share?readyShare([{name,bytes,type}]):offerDownload(name,bytes,type);
 async function libShare(d){
   try{const f=new File([d.blob],d.name+'.pdf',{type:'application/pdf'});
@@ -3982,7 +3999,7 @@ $('#ivSelX').onclick=()=>ivSelEnd();
 $('#ivSelAll').onclick=()=>{const vis=ivVisible();if(vis.every(v=>IV.sel.has(v.id)))IV.sel.clear();else vis.forEach(v=>IV.sel.add(v.id));ivSelUI()};
 $('#ivSelPaid').onclick=()=>{const ids=[...IV.sel];ivLoad();let n=0;IV.list.forEach(v=>{if(ids.includes(v.id)&&!v.void&&!v.paid){v.paid=true;v.paidOn=ivToday();n++}});ivStore();ivSelEnd();toast(n?`Marked ${n} as paid`:'Those are already paid')};
 $('#ivSelShare').onclick=async()=>{const ids=[...IV.sel];ivLoad();const vs=IV.list.filter(v=>ids.includes(v.id));if(!vs.length){toast('Only invoices can be shared as PDFs');return}busy('Making '+vs.length+' PDF'+(vs.length>1?'s':'')+'…');
-  try{const files=[];for(const v of vs){if(!v.void&&!v.biz)v.biz=ivBizSnap();files.push({name:ivFileName(v),bytes:await ivPdf(v),type:'application/pdf'});if(!v.void&&!v.sent)v.sent=Date.now()}ivStore();unbusy();ivSelEnd();readyShare(files,'Invoices')}catch(e){console.error(e);unbusy();toast('Could not make the PDFs')}};
+  try{const files=[];for(const v of vs){if(!v.void&&!v.biz)v.biz=ivBizSnap();files.push({name:ivFileName(v),bytes:await ivPdf(v),type:'application/pdf'})}ivStore();unbusy();ivSelEnd();readyShare(files,'Invoices',()=>ivMarkSent(vs.map(v=>v.id)))}catch(e){console.error(e);unbusy();toast('Could not make the PDFs')}};
 $('#ivSelDel').onclick=()=>{const ids=[...IV.sel];ivLoad();ivIncLoad();const vs=IV.list.filter(v=>ids.includes(v.id)),incs=IV.inc.filter(x=>ids.includes(x.id));const sent=vs.filter(v=>v.sent&&!v.void),rest=vs.filter(v=>!(v.sent&&!v.void));
   const total=vs.length+incs.length;
   openModal(`<h3>Delete ${total} item${total>1?'s':''}?</h3>${sent.length?`<p class="small"><b>${sent.length}</b> invoice${sent.length>1?'s were':' was'} already sent, so ${sent.length>1?'they':'it'} will be marked <b>Void</b> instead and kept in your records. Their numbers won't be used again.</p>`:''}${rest.length||incs.length?`<p class="small"><b>${rest.length+incs.length}</b> will be deleted for good${incs.length?` (including ${incs.length} income entr${incs.length>1?'ies':'y'})`:''}.</p>`:''}<div class="btns"><button class="btn" data-x>Cancel</button><button class="btn red" id="ivSelDelOk">${sent.length&&!rest.length&&!incs.length?'Void':'Delete'}</button></div>`);
@@ -4329,7 +4346,7 @@ function ivForm(){
   $('#ivClientList').innerHTML=ivClients().map(c=>`<option value="${esc(c.name)}">`).join('');
   F.innerHTML=`
    ${v.void?`<div class="ivbanner"><span style="flex:1"><b>This invoice is void.</b> It stays in your records and its number won't be used again.</span><button class="btn" id="ivUnvoid" style="flex:none;height:36px">Restore</button></div>`:''}
-   ${v.biz&&!v.void?`<div class="ivbanner" style="background:#f0fdf4;border-color:#bbf7d0"><span style="flex:1">This invoice keeps the business details it was sent with${v.biz.name?' ('+esc(v.biz.name)+')':''}, so it always looks the same. Changes below apply to new invoices.</span><button class="btn" id="ivRebiz" style="flex:none;height:36px">Use current</button></div>`:''}
+   ${v.biz&&!v.void?`<div class="ivbanner" style="background:#f0fdf4;border-color:#bbf7d0"><span style="flex:1">This invoice keeps the business details it was made with${v.biz.name?' ('+esc(v.biz.name)+')':''}, so it always looks the same. Changes below apply to new invoices.</span><button class="btn" id="ivRebiz" style="flex:none;height:36px">Use current</button></div>`:''}
    <div class="card"><details ${hasBiz?'':'open'}><summary>Your business${hasBiz?': '+esc(b.name):''}</summary>
     <p class="small" style="margin-top:-4px">Saved once and reused on every invoice.</p>
     <div class="fld"><label>Logo (optional)</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><div class="ivlogo" id="bzLogoPrev"></div><button class="btn" id="bzLogoPick" style="flex:none;height:36px">Choose…</button><button class="btn red" id="bzLogoDel" style="flex:none;height:36px">Remove</button></div></div>
@@ -4423,7 +4440,10 @@ function ivCommit(){
   ivStore();IV.dirty=false;IV.isNew=false;ivHeader();
   if($('#inv').classList.contains('on'))ivRender();
 }
-function ivClose(){if(IV.dirty){const v=IV.cur;ivRead();const empty=!v.client.name&&!v.items.some(it=>it.desc||parseFloat(it.rate));if(!empty){ivCommit();toast('Invoice saved')}}$('#invEd').classList.remove('on')}
+function ivClose(){if(IV.dirty){const v=IV.cur;ivRead();const empty=!v.client.name&&!v.items.some(it=>it.desc||parseFloat(it.rate));if(!empty){ivCommit();toast('Saved to your invoice list, so you can finish it later',3500)}}$('#invEd').classList.remove('on')}
+/* leaving the app or the page (switching apps, closing the tab, Back past the app) keeps what was typed */
+function ivKeepDraft(){try{if($('#invEd').classList.contains('on')&&IV.dirty){const v=IV.cur;ivRead();if(v.client.name||v.items.some(it=>it.desc||parseFloat(it.rate)))ivCommit()}}catch(e){console.warn(e)}}
+addEventListener('pagehide',ivKeepDraft);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')ivKeepDraft()});
 $('#ieBack').onclick=ivClose;
 $('#ieSave').onclick=()=>{ivCommit();toast('Invoice '+IV.cur.no+' saved');$('#invEd').classList.remove('on');if(!$('#inv').classList.contains('on'))invOpen()};
 $('#ieDup').onclick=()=>{if(IV.dirty)ivCommit();const s=IV.cur,d=ivBlank();d.client={...s.client};d.items=s.items.map(it=>({...it}));d.taxName=s.taxName;d.taxRate=s.taxRate;d.notes=s.notes;
@@ -4440,13 +4460,16 @@ function ivCheck(){ivRead();const v=IV.cur;
   if(!v.client.name){toast('Add the client name first');$('#clName').focus();return false}
   if(!v.items.some(it=>it.desc||parseFloat(it.rate))){toast('Add at least one item');return false}return true}
 /* send: mark as sent, keep a Library copy, then the share screen with a picture of page 1 */
+/* an invoice counts as sent once its PDF has actually been shared or saved, not when the Send button is tapped */
+function ivMarkSent(ids){ivLoad();const now=Date.now();let ch=false;for(const x of IV.list)if(ids.includes(x.id)&&!x.void&&!x.sent){x.sent=now;ch=true}
+  if(IV.cur&&ids.includes(IV.cur.id)&&!IV.cur.void&&!IV.cur.sent)IV.cur.sent=now;if(ch){ivStore();if($('#inv').classList.contains('on'))ivRender()}}
 async function ivSend(bytes){
-  const v=IV.cur;if(!v.void&&!v.sent)v.sent=Date.now();
+  const v=IV.cur;
   ivCommit();if(!v.void&&!v.biz){v.biz=ivBizSnap();ivCommit()}busy('Making the PDF…');
   try{if(!bytes)bytes=await ivPdf(v);const name=ivFileName(v);
     if(lsGet('foliotest.ivlib')!=='0'){try{await libFolders();await libSave(name,'Invoices',bytes)}catch(e){console.warn(e)}}
     const thumb=await ivThumb(bytes);
-    unbusy();readyShare([{name,bytes,type:'application/pdf'}],name);
+    unbusy();readyShare([{name,bytes,type:'application/pdf'}],name,()=>ivMarkSent([v.id]));
     if(thumb){const m=$('#modal');const h3=m.querySelector('h3');const im=document.createElement('img');im.className='rsthumb';im.alt='First page of the invoice';im.src=thumb;h3&&h3.after(im)}}
   catch(e){console.error(e);unbusy();toast('Could not make the PDF')}}
 $('#iePdf').onclick=()=>{if(ivCheck())ivSend()};
