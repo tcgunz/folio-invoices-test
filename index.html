@@ -444,7 +444,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 107<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 108<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -1302,11 +1302,11 @@ function renderProps(){
   const t=S.tool,p=$('#props'),k=CKEY[t];let h='';p.classList.toggle('tiponly',t==='hand');
   const hints={field:'',hand:'Drag to scroll, pinch to zoom, double-tap to fit. Pick a tool below to edit.',select:'Tap an item to select it, then drag to move, or pinch / drag the round corner handle to resize. Drag to scroll; press and hold, then drag a box to select several.',wo:'Drag over anything to cover it with white.',edittext:'Tap words to change them, or tap an empty spot to add text. Drag to scroll. Press and hold, then drag, to pick exact lines.',place:'Tap on a page to place it.'};
   if(t==='field'){const n=fldLeft().length;
-    p.innerHTML=`${Object.entries(FK).map(([k,l])=>`<button class="fchip${S.fk===k?' on':''}" data-fk="${k}">${l}</button>`).join('')}<span class="chipsep"></span>
+    p.innerHTML=`<button class="btn pri" id="fGo" style="height:34px;white-space:nowrap;flex:none" ${n?'':'disabled'}>Start signing${n?' ('+n+')':''}</button><span class="chipsep"></span>
+      ${Object.entries(FK).map(([k,l])=>`<button class="fchip${S.fk===k?' on':''}" data-fk="${k}">${l}</button>`).join('')}<span class="chipsep"></span>
       <button class="fchip${S.fwho===-1?' on':''}" data-fw="-1"><i style="background:${MEC}"></i>${esc(whoName(ME))}</button>
       ${S.signers.map((w,i)=>`<button class="fchip${S.fwho===i?' on':''}" data-fw="${i}"><i style="background:${FLDC[i%FLDC.length]}"></i>${esc(w)}</button>`).join('')}
       <button class="fchip" id="fAdd" title="Add a person">+ Person</button><button class="fchip" id="fNames">Names…</button>
-      <button class="btn pri" id="fGo" style="height:34px;white-space:nowrap;flex:none" ${n?'':'disabled'}>Start signing${n?' ('+n+')':''}</button>
       <span class="hint">Drag a box where someone signs, or tap for a standard size. Drag a box to move it, its corner to resize, or tap it to change it.</span>`;
     p.querySelectorAll('[data-fk]').forEach(b=>b.onclick=()=>{S.fk=b.dataset.fk;renderProps()});
     p.querySelectorAll('[data-fw]').forEach(b=>b.onclick=()=>{S.fwho=+b.dataset.fw;renderProps()});
