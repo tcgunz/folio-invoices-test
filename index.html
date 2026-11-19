@@ -428,7 +428,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 99<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 100<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -2394,10 +2394,22 @@ function wordLines(ws){ws=ws.map(w=>({...w,yc:(w.y0+w.y1)/2,h:w.y1-w.y0})).sort(
 /* how well a reading of a receipt hangs together: subtotal + tax (+ tip) = total scores highest */
 function rcScore(ws){const r=readReceipt(wordLines(ws)),n=['vendor','date','subtotal','tax','total'].filter(k=>r[k]).length,t=+r.total,st=+r.subtotal,tx=+r.tax;
   const ok=!!(r.total&&r.subtotal&&r.tax&&Math.abs(st+tx-t)<=.03);return{s:n+(ok?5:0),ok}}
-/* receipts: read line by line first; if the numbers don't add up, read again with automatic layout and keep the better one */
-async function ocrReceipt(worker,c){const w1=await ocrCanvas(worker,c),s1=rcScore(w1);if(s1.ok)return w1;
-  try{await worker.setParameters({tessedit_pageseg_mode:'3'});const w2=await ocrCanvas(worker,c);return rcScore(w2).s>s1.s?w2:w1}
-  catch(e){console.warn(e);return w1}finally{try{await worker.setParameters({tessedit_pageseg_mode:'6'})}catch(e){}}}
+/* faint or coloured receipts (blue/cyan thermal paper, dot-matrix print): grey, enlarged when narrow, and turned into
+   clean black-on-white by comparing each pixel with its neighbourhood, so uneven light and paper colour drop out */
+function rcEnhance(c){
+  const s=Math.max(1,Math.min(2,Math.sqrt(4.5e6/(c.width*c.height)))),W=Math.round(c.width*s),H=Math.round(c.height*s);
+  const o=document.createElement('canvas');o.width=W;o.height=H;const x=o.getContext('2d',{willReadFrequently:true});x.imageSmoothingQuality='high';x.drawImage(c,0,0,W,H);
+  const id=x.getImageData(0,0,W,H),d=id.data,g=new Uint8Array(W*H);for(let i=0,j=0;i<g.length;i++,j+=4)g[i]=(d[j]*30+d[j+1]*59+d[j+2]*11)/100;
+  const I=new Uint32Array((W+1)*(H+1));for(let y=0;y<H;y++){let row=0;for(let xx=0;xx<W;xx++){row+=g[y*W+xx];I[(y+1)*(W+1)+xx+1]=I[y*(W+1)+xx+1]+row}}
+  const r=Math.max(8,Math.round(W/40));
+  for(let y=0;y<H;y++){const y0=Math.max(0,y-r),y1=Math.min(H,y+r+1);for(let xx=0;xx<W;xx++){const x0=Math.max(0,xx-r),x1=Math.min(W,xx+r+1);
+    const sum=I[y1*(W+1)+x1]-I[y0*(W+1)+x1]-I[y1*(W+1)+x0]+I[y0*(W+1)+x0],mean=sum/((x1-x0)*(y1-y0)),v=g[y*W+xx]<mean-10?0:255,j=(y*W+xx)*4;d[j]=d[j+1]=d[j+2]=v;d[j+3]=255}}
+  x.putImageData(id,0,0);return o}
+/* receipts: read line by line first; if the numbers don't add up, read a cleaned-up copy, then try automatic layout, and keep the best */
+async function ocrReceipt(worker,c){let best=await ocrCanvas(worker,c),bs=rcScore(best);if(bs.ok)return best;
+  try{const w2=await ocrCanvas(worker,rcEnhance(c)),s2=rcScore(w2);if(s2.s>bs.s){best=w2;bs=s2}if(bs.ok)return best}catch(e){console.warn(e)}
+  try{await worker.setParameters({tessedit_pageseg_mode:'3'});const w3=await ocrCanvas(worker,c);return rcScore(w3).s>bs.s?w3:best}
+  catch(e){console.warn(e);return best}finally{try{await worker.setParameters({tessedit_pageseg_mode:'6'})}catch(e){}}}
 async function ocrCanvas(worker,c){
   const m=ocrMax(c.width,c.height);const src=m<Math.max(c.width,c.height)?downscale(c,m):c;
   const{data}=await worker.recognize(src);
@@ -2985,7 +2997,7 @@ function openRegion(){
 
 /* well-known Canadian stores → name + usual category */
 const BRANDS=[
- ['Esso',/\besso\b/i,'Vehicle & fuel'],['Shell',/\bshell\b/i,'Vehicle & fuel'],['Petro-Canada',/petro[\s-]*can/i,'Vehicle & fuel'],['Circle K',/circle\s*k\b/i,'Vehicle & fuel'],
+ ['Esso',/\bess[o0]\b/i,'Vehicle & fuel'],['Shell',/\bs[h]e[l1]{2}\b/i,'Vehicle & fuel'],['Petro-Canada',/petro[\s-]*can/i,'Vehicle & fuel'],['Circle K',/c[i1]rc[l1]e\s*k\b|cercle\s*k\b/i,'Vehicle & fuel'],
  ['Pioneer',/\bpioneer\b/i,'Vehicle & fuel'],['Ultramar',/ultramar/i,'Vehicle & fuel'],['Husky',/\bhusky\b/i,'Vehicle & fuel'],['Mobil',/\bmobil\b/i,'Vehicle & fuel'],['Chevron',/chevron/i,'Vehicle & fuel'],
  ['Irving',/\birving\b/i,'Vehicle & fuel'],['Costco Gas',/costco\s*gas/i,'Vehicle & fuel'],['Canadian Tire Gas+',/gas\s*\+|gas\s*bar/i,'Vehicle & fuel'],['407 ETR',/407\s*etr/i,'Vehicle & fuel'],
  ['Marcone',/marcone/i,'Equipment'],['Reliable Parts',/reliable\s*parts/i,'Equipment'],['Grainger',/grainger/i,'Equipment'],['Home Hardware',/home\s*hardware/i,'Equipment'],
@@ -3025,13 +3037,17 @@ function rcDate(text){
     const r3=/\b([A-Za-zéû]{3,5})\.?\s+(\d{1,2}),?\s+(20\d\d)\b/g;while((m=r3.exec(ln))){const mo=MONTHS[m[1].toLowerCase()];if(mo)add(iso([+m[3],mo,+m[2]]))}
     const r4=/\b(\d{1,2})[/-](\d{1,2})[/-](20\d\d|\d\d)\b/g;while((m=r4.exec(ln))){let a=+m[1],b=+m[2],y=fixY(+m[3]),mo=a,dd=b;if((a>12&&b<=12)||(REGION.date==='DMY'&&a<=12&&b<=12)){dd=a;mo=b}add(iso([y,mo,dd]))}
   });
-  cands.sort((a,b)=>b.hasTime-a.hasTime||a.li-b.li);return cands.length?cands[0].v:'';
+  const now=new Date().getFullYear();
+  for(const c of cands){const y=+c.v.slice(0,4);if(y<now-5||y>now+1){const alt=+(String(y).slice(0,2)+String(now).slice(2,3)+String(y).slice(3));c.v=(alt>=now-5&&alt<=now+1?alt:y)+c.v.slice(4);c.odd=alt>=now-5&&alt<=now+1?0:1}else c.odd=0}
+  cands.sort((a,b)=>a.odd-b.odd||b.hasTime-a.hasTime||a.li-b.li);return cands.length?cands[0].v:'';
 }
 function readReceipt(text){
-  const lines=(text||'').split(/\n+/).map(l=>l.trim()).filter(Boolean);
+  // faint dot-matrix print: the decimal point is often read as a dash ("CAD$ 65-13"); fix it on money lines only, never in dates or phone numbers
+  text=(text||'').split('\n').map(l=>/tota[l1]|\bcad|\$|amount|due|paid|charged|\b(h|g|p)st\b|tax|sub|balance/i.test(l)?l.replace(/(?<![\d\-\/.:])(\d{1,5})\s?-\s?(\d{2})(?![\d\-\/:])/g,'$1.$2'):l).join('\n');
+  const lines=text.split(/\n+/).map(l=>l.trim()).filter(Boolean);
   const r={vendor:'',date:'',subtotal:'',total:'',tax:'',tip:'',payment:''};if(!lines.length)return r;
   // vendor: first "name-like" line near the top, or a known web address
-  const skip=/[A-Z]\d[A-Z]\s?\d[A-Z]\d|,\s*(on|ont|qc|bc|ab|mb|sk|ns|nb|nl|pe)\b\.?|\bontario\b|@|\bremit|\bdrive\b|\bboulevard|\bblvd|\bhwy|\bhighway|receipt|invoice|welcome|thank|merci|date|time|tel|phone|fax|www|http|address|cashier|store\s*#|^#|order|table|server|copy|copie|questions|drive|street|\bst\b|\bave\b|\brd\b|suite|unit|building|dine[\s-]*in|take[\s-]*out|to[\s-]*go|pick[\s-]*up|delivery|guest|check\s*#|chk|seat|cover|terminal|merchant|transaction|visit\s*us|survey|reprint|duplicate|customer|sale|refund|^\W*$/i;
+  const skip=/[A-Z]\d[A-Z]\s?\d[A-Z]\d|,\s*(on|ont|qc|bc|ab|mb|sk|ns|nb|nl|pe)\b\.?|\bontario\b|@|\bremit|\bdrive\b|\bboulevard|\bblvd|\bhwy|\bhighway|receipt|invoice|welcome|thank|merci|date|time|tel|phone|fax|www|http|address|cashier|store\s*#|^#|order|table|server|copy|copie|questions|drive|street|\bst\b|\bave\b|\brd\b|suite|unit|building|dine[\s-]*in|take[\s-]*out|to[\s-]*go|pick[\s-]*up|delivery|guest|check\s*#|chk|seat|cover|terminal|merchant|transaction|visit\s*us|survey|reprint|duplicate|customer|sale|refund|relev[eé]|record|^\W*$/i;
   const web=(text.match(/\b(?:www\.)?([a-z0-9-]{2,30})\.(?:com|ca|net|org)\b/i)||[])[1];
   let brand=null,bi=1e9;for(const[n,re,c]of BRANDS){const m=re.exec(text);if(m&&m.index<bi){bi=m.index;brand=[n,c]}}
   if(brand){r.vendor=brand[0];r.category=brand[1]}
@@ -3042,9 +3058,9 @@ function readReceipt(text){
   // total: a TOTAL / AMOUNT DUE line (not subtotal), else the largest amount
   let total=null;
   for(let i=0;i<lines.length;i++){const l=lines[i];if(/s\s?u\s?b\s*-?\s*(tota[l1]|ttl)|s\s*\/\s*total|sous[\s-]*total|total\s*(?:savings|discount|items|qty|tax|before)|before\s*tax|net\s*total|merchandise|goods\s*total|items?\s*total|amount\s*before/i.test(l))continue;
-    if(/\b(grand\s*total|tota[l1]|amount\s*due|balance\s*due|bal(ance)?\b|montant|à payer|a payer|total\s*due|amount\s*paid|total\s*payable|total\s*amount|ttl|tot\b)/i.test(l)&&!/tax\s*tota|tota[l1]\s*tax|tota[l1]\s*(hst|gst|pst)|tota[l1]\s*taxes|tota[l1]\s*(number|no\.?|#)\s*(of\s*)?items|items?\s*sold|tota[l1]\s*(items|qty|quantity|savings|saved|points)/i.test(l)){let a=rcAmounts(l);if(!a.length&&lines[i+1])a=rcAmounts(lines[i+1]);if(a.length){const v=a[a.length-1];if(total===null||v>=total)total=v}}}
+    if(/\bt\W?[o0]\W?[tr]\W?[a4]{1,2}\W?[l1i]\b|\bcad\s?[$s5]|\b(grand\s*total|tota[l1]|amount\s*due|balance\s*due|bal(ance)?\b|montant|à payer|a payer|total\s*due|amount\s*paid|total\s*payable|total\s*amount|ttl|tot\b)/i.test(l)&&!/tax\s*tota|tota[l1]\s*tax|tota[l1]\s*(hst|gst|pst)|tota[l1]\s*taxes|tota[l1]\s*(number|no\.?|#)\s*(of\s*)?items|items?\s*sold|tota[l1]\s*(items|qty|quantity|savings|saved|points)/i.test(l)){let a=rcAmounts(l);if(!a.length&&lines[i+1])a=rcAmounts(lines[i+1]);if(a.length){const v=a[a.length-1];if(v>0&&(total===null||v>=total))total=v}}}
   let subA=null;for(const l of lines)if(/s\s?u\s?b\s*-?\s*(tota[l1]|ttl)|s\s*\/\s*total|sous[\s-]*total|before\s*tax|pre[\s-]*tax|net\s*(amount|total|sales)?\b|merchandise(\s*total)?|goods\s*total|items?\s*total|amount\s*before|total\s*before/i.test(l)&&!/net\s*(wt|weight)/i.test(l)){const a=rcAmounts(l);if(a.length)subA=a[a.length-1]}
-  const allAmts=lines.flatMap(rcAmounts).filter(v=>v<100000);
+  const allAmts=lines.filter(l=>!/#|station|trans\b|auth|ref|invoice|\bid\b|pts|points|term|appr|approval|seq|batch|tel|phone|acct|account|member|reconcil/i.test(l)).flatMap(rcAmounts).filter(v=>v<100000);
   if(total!==null&&subA!==null&&total<subA)total=null;               // a "total" smaller than the subtotal is a misread
   if(total===null&&subA!==null){const rr=(REGION.rate||13)/100,c=allAmts.filter(v=>v>=subA&&v<=subA*1.2);if(c.length)total=c.reduce((a,b)=>Math.abs(b-subA*(1+rr))<Math.abs(a-subA*(1+rr))?b:a)}
   if(total===null){if(allAmts.length)total=Math.max(...allAmts)}
@@ -3077,6 +3093,10 @@ function readReceipt(text){
    if(!r.tip&&total&&lines.some(l=>/\b(tip|tips|gratuit(y|é)|pourboire|propina)\b/i.test(l))){let ch=null;
      for(const l of lines)if(/tota[l1]\s*(charged|paid|with\s*tip|incl\.?\s*tip)|amount\s*charged|grand\s*tota[l1]|montant\s*(total|factur)/i.test(l)){const a=rcAmounts(l);if(a.length)ch=a[a.length-1]}
      const bill=r.subtotal&&r.tax?+r.subtotal+ +r.tax:total;if(ch&&ch>bill+.009&&ch-bill<bill*.6)r.tip=(ch-bill).toFixed(2)}}
+  // tax shown as "included" (fuel receipts, "HST INCLUDED"): the total already has it, so the subtotal is total − tax
+  const taxIncl=lines.some(l=>(TAXW.test(l)||/\b[hg]s\w?\b/i.test(l))&&/includ|[nh]c[l1]ud|\bincl\b|compris/i.test(l));
+  if(taxIncl&&!r.tax&&r.total&&REGION.rate){const rr=REGION.rate/100;r.tax=(+r.total*rr/(1+rr)).toFixed(2)}   // amount unreadable: work it out from the rate
+  if(taxIncl&&r.tax&&r.total&&(!r.subtotal||Math.abs(+r.subtotal- +r.total)<=.03))r.subtotal=(+r.total- +r.tax).toFixed(2);
   // the total kept is the BILL total (subtotal + tax); a tip is separate and added on top
   const tipV=+r.tip||0;
   if(tipV&&r.total){const t=+r.total;
@@ -3088,6 +3108,8 @@ function readReceipt(text){
     else if(tipV&&Math.abs(want+tipV-t)<=.03)r.total=want.toFixed(2)}
   if(!r.tax&&r.subtotal&&r.total){const d=+r.total- +r.subtotal;if(d>.009&&d<=+r.subtotal*.16)r.tax=d.toFixed(2)}
   if(!r.subtotal&&r.total&&r.tax)r.subtotal=(+r.total- +r.tax).toFixed(2);
+  // impossible combinations from a bad reading: leave those boxes empty rather than wrong
+  if(r.total&&+r.total<=0)r.total='';if(r.tax&&r.total&&+r.tax>=+r.total)r.tax='';if(r.subtotal&&(+r.subtotal<=0||(r.total&&+r.subtotal>+r.total+.01&&!+r.tip)))r.subtotal='';
   const PAY=[['Visa',/\bv[i1l!|]sa\b/i],['Mastercard',/master\s*c[a@]rd|\bmc\b/i],['Amex',/amex|american express/i],['Debit',/interac|\bdebit\b|débit/i],['Apple Pay',/apple\s*pay/i],['Google Pay',/google\s*pay/i],['Cash',/\bcash\b|comptant/i]];
   for(const[n,re]of PAY)if(re.test(text)){r.payment=n;break}
   if(!r.category)r.category=guessCategory(text);
