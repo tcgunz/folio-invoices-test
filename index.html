@@ -135,7 +135,7 @@ body.norc .rcx{display:none!important}
 .btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
 .btn.red{color:var(--danger)}
 .btn.l{margin-right:auto}
-#sigPad{width:100%;height:190px;border:1px dashed #b8c0c8;border-radius:12px;touch-action:none;background:#fcfcfd;display:block}
+#sigPad{width:100%;height:190px;border:1px dashed #b8c0c8;border-radius:12px;touch-action:none;background:#fcfcfd;display:block}#sigPad.ini{width:min(100%,260px);height:170px;margin:0 auto}
 .small{font-size:12px;color:var(--muted)}
 #menu button,.hero .big,.sbtn,#tools button{position:relative;overflow:hidden}
 .hasfo{position:relative!important;overflow:hidden!important}
@@ -372,7 +372,7 @@ body[data-theme=rose]{--acc:#be185d;--accd:#9d174d;--acc2:#fce7f3;--bg:#faf4f7;-
 body.ci{--c-blue:#2563eb;--c-violet:#7c3aed;--c-pink:#db2777;--c-orange:#ea580c;--c-amber:#d97706;--c-green:#16a34a;--c-teal:#0d9488;--c-sky:#0284c7;--c-red:#dc2626;--c-slate:#475569}
 body.ci #tools button:not(.on)[data-t] svg{color:var(--ci)}
 body.ci #tools [data-t=hand]{--ci:var(--c-slate)}body.ci #tools [data-t=select]{--ci:var(--c-blue)}body.ci #tools [data-t=rotpage]{--ci:var(--c-violet)}
-body.ci #tools [data-t=edittext]{--ci:var(--c-orange)}body.ci #tools [data-t=text]{--ci:var(--c-amber)}body.ci #tools [data-t=image]{--ci:var(--c-pink)}body.ci #tools [data-t=sign]{--ci:var(--c-violet)}
+body.ci #tools [data-t=edittext]{--ci:var(--c-orange)}body.ci #tools [data-t=text]{--ci:var(--c-amber)}body.ci #tools [data-t=image]{--ci:var(--c-pink)}body.ci #tools [data-t=sign],body.ci #tools [data-t=initial]{--ci:var(--c-violet)}
 body.ci #tools [data-t=pen]{--ci:var(--c-blue)}body.ci #tools [data-t=hl]{--ci:#ca8a04}body.ci #tools [data-t=wo]{--ci:var(--c-slate)}
 body.ci #tools [data-t=check]{--ci:var(--c-green)}body.ci #tools [data-t=cross]{--ci:var(--c-red)}
 body.ci #tools [data-t=rect]{--ci:var(--c-sky)}body.ci #tools [data-t=ellipse]{--ci:var(--c-teal)}body.ci #tools [data-t=line]{--ci:var(--c-slate)}body.ci #tools [data-t=arrow]{--ci:var(--c-orange)}body.ci #tools [data-t=wmark]{--ci:var(--c-pink)}
@@ -428,7 +428,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 98<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 99<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -716,6 +716,7 @@ const IC={
  check:"M5 12l5 5L20 7",
  cross:"M6 6l12 12M18 6 6 18",
  sign:"M3 17c3-7 5.5-7 6 0 .4 3 2.5 1 4.5-2s3 1 4 2 2.5 0 3.5-1M3 21h18",
+ initial:"M4 16c1.5-5 3-8 4-8s0 6-1 8c2-2 3-3 3.5-2.5S10 17 11 17M13 17c1-3 2.5-8 3.5-8 .8 0 .3 3-1.3 5 2 0 4 .5 4 1.8S17 17 14 17M3 21h18",
  image:"M4 5h16v14H4zM4 16l5-5 4 4 2.5-2.5L20 17M15.5 9.5a1.5 1.5 0 1 0 .01 0",
  trash:"M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13",
  rotL:"M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5",
@@ -782,7 +783,7 @@ const S={sources:[],pages:[],scale:1,tool:'hand',sel:null,pending:null,undo:[],r
   colors:{text:'#111827',pen:'#1d4ed8',hl:'#fde047',shape:'#dc2626',mark:'#111827'},widths:{pen:2,shape:2},fontSize:14};
 const INK=['#111827','#1d4ed8','#dc2626','#15803d','#7c3aed','#ea580c'];
 const HLC=['#fde047','#86efac','#93c5fd','#f9a8d4','#fdba74'];
-const TOOLS=[['hand','Scroll'],['select','Select'],['rotpage','Rotate'],'|',['edittext','Text'],['image','Add image'],['sign','Sign'],'|',['pen','Draw'],['hl','Highlight'],['wo','White-out'],'|',['check','Check'],['cross','Cross'],'|',['rect','Box'],['ellipse','Circle'],['line','Line'],['arrow','Arrow'],'|',['wmark','Watermark']];
+const TOOLS=[['hand','Scroll'],['select','Select'],['rotpage','Rotate'],'|',['edittext','Text'],['image','Add image'],['sign','Sign'],['initial','Initials'],'|',['pen','Draw'],['hl','Highlight'],['wo','White-out'],'|',['check','Check'],['cross','Cross'],'|',['rect','Box'],['ellipse','Circle'],['line','Line'],['arrow','Arrow'],'|',['wmark','Watermark']];
 const CKEY={text:'text',pen:'pen',hl:'hl',rect:'shape',ellipse:'shape',line:'shape',arrow:'shape',check:'mark',cross:'mark'};
 const getPg=id=>S.pages.find(p=>p.id===id);
 const rot=pg=>(pg.base+pg.extra)%360;
@@ -1084,6 +1085,7 @@ function renderTools(){
 $('#tools').addEventListener('click',ev=>{const b=ev.target.closest('button[data-t]');if(b)setTool(b.dataset.t)});
 function setTool(t){finishInline();if(t==='text')t='edittext';
   if(t==='sign'){openSign();return}
+  if(t==='initial'){openSign(true);return}
   if(t==='image'){if(!S.pages.length)toast('Open a PDF first');return}
   if(t==='wmark'){wmMenu();return}
   if(t!=='place')S.pending=null;
@@ -1215,10 +1217,11 @@ function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function regImg(data,kind){const key='i'+(uid++);S.imgs[key]={data,kind};return key}
 function startPlace(data,kind,wpt,ratio){const key=regImg(data,kind);S.pending={key,w:wpt,h:wpt*ratio};setTool('place');toast('Tap on a page to place it')}
-function openSign(){
-  const saved=lsGet('foliotest.sig');let color='#111827';
-  const m=openModal(`<h3>Your signature</h3><canvas id="sigPad"></canvas>
-   <div class="row" style="justify-content:space-between"><div class="sw" id="sgSw">${['#111827','#1d4ed8'].map(c=>`<button data-c="${c}" style="background:${c}"></button>`).join('')}</div><span class="small">Sign with your finger or mouse</span></div>
+function openSign(ini){
+  const key=ini?'foliotest.ini':'foliotest.sig',W=ini?60:150;
+  const saved=lsGet(key);let color=lsGet(key+'c')||'#111827';
+  const m=openModal(`<h3>${ini?'Your initials':'Your signature'}</h3><canvas id="sigPad"${ini?' class="ini"':''}></canvas>
+   <div class="row" style="justify-content:space-between"><div class="sw" id="sgSw">${['#111827','#1d4ed8'].map(c=>`<button data-c="${c}" style="background:${c}"></button>`).join('')}</div><span class="small">${ini?'Write your initials':'Sign'} with your finger or mouse</span></div>
    <div class="btns">${saved?'<button class="btn l" id="sgSaved">Use saved</button>':''}<button class="btn" id="sgClr">Clear</button><button class="btn" data-x>Cancel</button><button class="btn pri" id="sgOk">Place</button></div>`);
   const cv=$('#sigPad'),r=cv.getBoundingClientRect(),d=2;cv.width=r.width*d;cv.height=r.height*d;const ctx=cv.getContext('2d');ctx.scale(d,d);ctx.lineCap='round';ctx.lineJoin='round';
   let drawing=false,last=null,any=false;
@@ -1229,14 +1232,14 @@ function openSign(){
   cv.onpointermove=ev=>{if(!drawing)return;const list=ev.getCoalescedEvents?ev.getCoalescedEvents():[ev];for(const ce of(list.length?list:[ev])){const p=P(ce);const dist=Math.hypot(p[0]-last[0],p[1]-last[1]);ctx.strokeStyle=color;ctx.lineWidth=Math.max(1.4,3.2-dist*.12);ctx.beginPath();ctx.moveTo(last[0],last[1]);ctx.lineTo(p[0],p[1]);ctx.stroke();last=p}};
   cv.onpointerup=cv.onpointercancel=()=>{drawing=false};
   $('#sgClr').onclick=()=>{ctx.clearRect(0,0,cv.width,cv.height);any=false};
-  if(saved)$('#sgSaved').onclick=()=>{closeModal();const im=new Image();im.onload=()=>startPlace(saved,'png',150,im.height/im.width);im.src=saved};
+  if(saved)$('#sgSaved').onclick=()=>{closeModal();const im=new Image();im.onload=()=>startPlace(saved,'png',W,im.height/im.width);im.src=saved};
   $('#sgOk').onclick=()=>{
-    if(!any){toast('Draw your signature first');return}
+    if(!any){toast(ini?'Write your initials first':'Draw your signature first');return}
     const id=ctx.getImageData(0,0,cv.width,cv.height).data;let x0=cv.width,y0=cv.height,x1=0,y1=0;
     for(let y=0;y<cv.height;y++)for(let x=0;x<cv.width;x++){if(id[(y*cv.width+x)*4+3]>10){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
     const pad=8;x0=Math.max(0,x0-pad);y0=Math.max(0,y0-pad);x1=Math.min(cv.width,x1+pad);y1=Math.min(cv.height,y1+pad);
     const t=document.createElement('canvas');t.width=x1-x0;t.height=y1-y0;t.getContext('2d').drawImage(cv,x0,y0,t.width,t.height,0,0,t.width,t.height);
-    const url=t.toDataURL('image/png');lsSet('foliotest.sig',url);closeModal();startPlace(url,'png',150,t.height/t.width);
+    const url=t.toDataURL('image/png');lsSet(key,url);lsSet(key+'c',color);closeModal();startPlace(url,'png',W,t.height/t.width);
   };
 }
 
