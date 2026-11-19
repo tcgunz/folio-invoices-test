@@ -444,7 +444,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 105<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 106<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -1019,6 +1019,7 @@ function drawA(ctx,a,vp,R){
     const fs=Math.max(8,Math.min(13,h*.42));ctx.font=`600 ${fs}px Helvetica, Arial, sans-serif`;ctx.fillStyle=col;ctx.textBaseline='middle';
     const lab=(a.k==='sig'?'Sign here':a.k==='ini'?'Initial':'Date')+(S.signers.length>1?' · '+a.who:'');
     ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.fillText(lab,x+5,y+h/2);ctx.restore();
+    if(S.tool==='field'&&!GS.on){ctx.beginPath();ctx.arc(x+w,y+h,6,0,7);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=col;ctx.stroke();ctx.fillStyle=col}   // resize handle
     if(cur){ctx.beginPath();ctx.moveTo(x-5,y+h/2);ctx.lineTo(x-17,y+h/2-9);ctx.lineTo(x-17,y+h/2+9);ctx.closePath();ctx.fill()}
     break}
   case 'img':{const im=getImgEl(a.key);const[x,y]=V([a.x,a.y]);ctx.translate(x,y);ctx.rotate((R-a.R)*Math.PI/180);if(im.complete&&im.naturalWidth)ctx.drawImage(im,0,0,a.w*sc,a.h*sc);break}
@@ -1112,7 +1113,12 @@ function onDown(ev,e){
     if(S.sel&&ev.pointerType!=='touch')setSel(null);ensureText(e,pg);drag={mode:'marq',e,start:[sx,sy],end:[sx,sy]};drawOverlay(e);return}
   if(S.sel)setSel(null);
   if(t==='pen'){snapshot();const a={t:'ink',s:[[P]],color:S.colors.pen,w:S.widths.pen};pg.annots.push(a);drag={mode:'ink',e,a,last:[sx,sy]};drawOverlay(e);return}
-  if(t==='field'){const hh=hitTest(e,pg,sx,sy);if(hh>=0&&pg.annots[hh].t==='fld'){fldMenu(pg,pg.annots[hh]);return}
+  if(t==='field'){
+    // on an existing box: drag to move it, drag its corner to resize it, or tap it for its settings
+    for(let i=pg.annots.length-1;i>=0;i--){const a=pg.annots[i];if(a.t!=='fld'||a.done)continue;const[x1,y1]=vp.convertToViewportPoint(...a.a),[x2,y2]=vp.convertToViewportPoint(...a.b);
+      const L=Math.min(x1,x2),T=Math.min(y1,y2),Rr=Math.max(x1,x2),B=Math.max(y1,y2),corner=Math.hypot(sx-Rr,sy-B)<(ev.pointerType==='touch'?26:16);
+      if(corner||(sx>=L-6&&sx<=Rr+6&&sy>=T-6&&sy<=B+6)){S.undo.push(JSON.stringify(S.pages));S.redo=[];
+        drag={mode:corner?'fres':'fmove',e,a,start:[sx,sy],last:[sx,sy],tl:[L,T],moved:false};try{e.c2.setPointerCapture(ev.pointerId)}catch(_){}return}}
     snapshot();const a={t:'fld',k:S.fk,who:S.signers[S.fwho]||S.signers[0],a:P,b:P,fid:uid++};pg.annots.push(a);drag={mode:'shape',e,a,start:[sx,sy]};drawOverlay(e);return}
   if(['hl','wo','rect','ellipse','line','arrow'].includes(t)){snapshot();const a={t,a:P,b:P,color:t==='wo'?'#ffffff':t==='hl'?S.colors.hl:S.colors.shape,w:S.widths.shape};if(t==='hl'||t==='wo')delete a.w;pg.annots.push(a);drag={mode:'shape',e,a,start:[sx,sy]};return}
   if(t==='text'){const h=hitTest(e,pg,sx,sy);inlineText(e,pg,h>=0&&pg.annots[h].t==='text'?{i:h}:{sx,sy});return}
@@ -1130,7 +1136,10 @@ function onMove(ev,e){
   const pg=getPg(e.id),vp=e.vp;const evs=(drag.mode==='ink'&&ev.getCoalescedEvents)?ev.getCoalescedEvents():[ev];
   for(const ce of (evs.length?evs:[ev])){
     const[sx,sy]=loc(ce,e);
-    if(drag.mode==='move'){const a=pg.annots[S.sel.i];const p0=vp.convertToPdfPoint(...drag.last),p1=vp.convertToPdfPoint(sx,sy);moveA(a,p1[0]-p0[0],p1[1]-p0[1]);drag.last=[sx,sy];drag.moved=true}
+    if(drag.mode==='fmove'||drag.mode==='fres'){if(!drag.moved&&Math.hypot(sx-drag.start[0],sy-drag.start[1])<6)continue;drag.moved=true;const a=drag.a;
+      if(drag.mode==='fmove'){const p0=vp.convertToPdfPoint(...drag.last),p1=vp.convertToPdfPoint(sx,sy);moveA(a,p1[0]-p0[0],p1[1]-p0[1]);drag.last=[sx,sy]}
+      else{a.a=vp.convertToPdfPoint(...drag.tl);a.b=vp.convertToPdfPoint(Math.max(sx,drag.tl[0]+14*S.scale),Math.max(sy,drag.tl[1]+9*S.scale))}}
+    else if(drag.mode==='move'){const a=pg.annots[S.sel.i];const p0=vp.convertToPdfPoint(...drag.last),p1=vp.convertToPdfPoint(sx,sy);moveA(a,p1[0]-p0[0],p1[1]-p0[1]);drag.last=[sx,sy];drag.moved=true}
     else if(drag.mode==='ink'){if(Math.hypot(sx-drag.last[0],sy-drag.last[1])<1.2)continue;drag.a.s[0].push(vp.convertToPdfPoint(sx,sy));drag.last=[sx,sy]}
     else if(drag.mode==='shape'){const p=vp.convertToPdfPoint(sx,sy);drag.end=[sx,sy];
       // highlighter: a straight swipe along a line of text still highlights a full line's height
@@ -1148,6 +1157,7 @@ function onUp(ev,e){
   if(!drag||drag.e!==e)return;const pg=getPg(e.id);
   if(drag.mode==='marq'){const d=drag;drag=null;drawOverlay(e);finishMarq(e,pg,d);return}
   if((drag.mode==='move'||drag.mode==='resize')&&!drag.moved)S.undo.pop();
+  if(drag.mode==='fmove'||drag.mode==='fres'){const d=drag;drag=null;if(!d.moved){S.undo.pop();drawOverlay(e);fldMenu(pg,d.a)}else{S.dirty=true;drawOverlay(e);updateUI()}return}
   if(drag.mode==='shape'&&drag.a&&drag.a.t==='fld'){const a=drag.a,w=Math.abs(a.b[0]-a.a[0]),hh=Math.abs(a.b[1]-a.a[1]);
     // a tap (or a tiny drag) makes a box of the usual size for its type
     if(w<14||hh<9){const[dw,dh]=FDEF[a.k]||FDEF.sig,c=[(a.a[0]+a.b[0])/2,(a.a[1]+a.b[1])/2];a.a=[c[0]-dw/2,c[1]-dh/2];a.b=[c[0]+dw/2,c[1]+dh/2]}
@@ -1288,7 +1298,7 @@ function renderProps(){
       ${S.signers.map((w,i)=>`<button class="fchip${S.fwho===i?' on':''}" data-fw="${i}"><i style="background:${FLDC[i%FLDC.length]}"></i>${esc(w)}</button>`).join('')}
       <button class="fchip" id="fAdd" title="Add a person">+ Person</button><button class="fchip" id="fNames">Names…</button>
       <button class="btn pri" id="fGo" style="height:34px;white-space:nowrap;flex:none" ${n?'':'disabled'}>Start signing${n?' ('+n+')':''}</button>
-      <span class="hint">Drag a box where someone signs, or tap for a standard size. Tap a box to change it.</span>`;
+      <span class="hint">Drag a box where someone signs, or tap for a standard size. Drag a box to move it, its corner to resize, or tap it to change it.</span>`;
     p.querySelectorAll('[data-fk]').forEach(b=>b.onclick=()=>{S.fk=b.dataset.fk;renderProps()});
     p.querySelectorAll('[data-fw]').forEach(b=>b.onclick=()=>{S.fwho=+b.dataset.fw;renderProps()});
     $('#fAdd').onclick=()=>{S.signers.push('Signer '+(S.signers.length+1));S.fwho=S.signers.length-1;renderProps()};
