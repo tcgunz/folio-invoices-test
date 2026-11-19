@@ -444,7 +444,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 106<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 107<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -839,7 +839,7 @@ async function addSource(buf,name){
   const pages=src.pp.map((p,i)=>({id:uid++,src:src.id,idx:i,extra:0,base:p.rotate||0,annots:[]}));
   // sign-here boxes prepared earlier in Folio come back with the file
   if(src.sh&&Array.isArray(src.sh.f)){const fresh=!fldAll().length;if(fresh&&Array.isArray(src.sh.signers)&&src.sh.signers.length)S.signers=src.sh.signers.map(String);
-    for(const f of src.sh.f){const pg=pages[f.p];if(!pg||!FK[f.k])continue;const who=String(f.who||S.signers[0]);if(!S.signers.includes(who))S.signers.push(who);pg.annots.push({t:'fld',k:f.k,who,a:f.a,b:f.b,fid:uid++})}}
+    for(const f of src.sh.f){const pg=pages[f.p];if(!pg||!FK[f.k])continue;const who=String(f.who||S.signers[0]);if(who!==ME&&!S.signers.includes(who))S.signers.push(who);pg.annots.push({t:'fld',k:f.k,who,a:f.a,b:f.b,fid:uid++})}}
   return pages;
 }
 function resetDoc(){S.signers=['Signer 1','Signer 2'];S.fwho=0;if(GS.on)gsEnd();S.scanAsked=false;S.dirty=false;S.libId=null;S.libFolder=null;S.sources=[];S.pages=[];S.undo=[];S.redo=[];S.imgs={};S.sel=null;imgEls.clear()}
@@ -1017,7 +1017,7 @@ function drawA(ctx,a,vp,R){
     const[x1,y1]=V(a.a),[x2,y2]=V(a.b),x=Math.min(x1,x2),y=Math.min(y1,y2),w=Math.abs(x2-x1),h=Math.abs(y2-y1),col=fldColor(a.who);
     ctx.fillStyle=withA(col,cur?.24:.1);ctx.fillRect(x,y,w,h);ctx.strokeStyle=col;ctx.lineWidth=cur?3:1.5;if(!cur)ctx.setLineDash([5,3]);ctx.strokeRect(x+.5,y+.5,w-1,h-1);ctx.setLineDash([]);
     const fs=Math.max(8,Math.min(13,h*.42));ctx.font=`600 ${fs}px Helvetica, Arial, sans-serif`;ctx.fillStyle=col;ctx.textBaseline='middle';
-    const lab=(a.k==='sig'?'Sign here':a.k==='ini'?'Initial':'Date')+(S.signers.length>1?' · '+a.who:'');
+    const lab=(a.k==='sig'?'Sign here':a.k==='ini'?'Initial':'Date')+(S.signers.length>1||a.who===ME?' · '+whoName(a.who):'');
     ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.fillText(lab,x+5,y+h/2);ctx.restore();
     if(S.tool==='field'&&!GS.on){ctx.beginPath();ctx.arc(x+w,y+h,6,0,7);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=col;ctx.stroke();ctx.fillStyle=col}   // resize handle
     if(cur){ctx.beginPath();ctx.moveTo(x-5,y+h/2);ctx.lineTo(x-17,y+h/2-9);ctx.lineTo(x-17,y+h/2+9);ctx.closePath();ctx.fill()}
@@ -1119,7 +1119,7 @@ function onDown(ev,e){
       const L=Math.min(x1,x2),T=Math.min(y1,y2),Rr=Math.max(x1,x2),B=Math.max(y1,y2),corner=Math.hypot(sx-Rr,sy-B)<(ev.pointerType==='touch'?26:16);
       if(corner||(sx>=L-6&&sx<=Rr+6&&sy>=T-6&&sy<=B+6)){S.undo.push(JSON.stringify(S.pages));S.redo=[];
         drag={mode:corner?'fres':'fmove',e,a,start:[sx,sy],last:[sx,sy],tl:[L,T],moved:false};try{e.c2.setPointerCapture(ev.pointerId)}catch(_){}return}}
-    snapshot();const a={t:'fld',k:S.fk,who:S.signers[S.fwho]||S.signers[0],a:P,b:P,fid:uid++};pg.annots.push(a);drag={mode:'shape',e,a,start:[sx,sy]};drawOverlay(e);return}
+    snapshot();const a={t:'fld',k:S.fk,who:S.fwho===-1?ME:(S.signers[S.fwho]||S.signers[0]),a:P,b:P,fid:uid++};pg.annots.push(a);drag={mode:'shape',e,a,start:[sx,sy]};drawOverlay(e);return}
   if(['hl','wo','rect','ellipse','line','arrow'].includes(t)){snapshot();const a={t,a:P,b:P,color:t==='wo'?'#ffffff':t==='hl'?S.colors.hl:S.colors.shape,w:S.widths.shape};if(t==='hl'||t==='wo')delete a.w;pg.annots.push(a);drag={mode:'shape',e,a,start:[sx,sy]};return}
   if(t==='text'){const h=hitTest(e,pg,sx,sy);inlineText(e,pg,h>=0&&pg.annots[h].t==='text'?{i:h}:{sx,sy});return}
   if(t==='check'||t==='cross'){snapshot();const s=8*S.scale;const C=(dx,dy)=>vp.convertToPdfPoint(sx+dx,sy+dy);
@@ -1173,24 +1173,28 @@ function onUp(ev,e){
 const FLDC=['#7c3aed','#0d9488','#ea580c','#db2777','#2563eb','#65a30d'];
 const FK={sig:'Signature',ini:'Initials',date:'Date'};
 const FDEF={sig:[150,34],ini:[46,28],date:[86,20]};   // usual box size in points, used when a box is tapped rather than dragged
-const fldColor=who=>FLDC[Math.max(0,S.signers.indexOf(who))%FLDC.length];
+const ME='@me',MEC='#334155';   // boxes for you yourself
+const whoName=w=>w===ME?(lsGet('foliotest.meName')||'Me'):w;
+const fldColor=who=>who===ME?MEC:FLDC[Math.max(0,S.signers.indexOf(who))%FLDC.length];
 function fldAll(){const L=[];S.pages.forEach((pg,pi)=>pg.annots.forEach(a=>{if(a.t==='fld')L.push({pg,pi,a})}));return L}
 function fldLeft(who){return fldAll().filter(x=>!x.a.done&&(who==null||x.a.who===who))}
 function fldMenu(pg,a){const e=els.get(pg.id);
   const m=openModal(`<h3>Sign-here box</h3><div class="fld"><label>What goes here</label><div class="row" style="gap:6px;flex-wrap:wrap" id="fmK">${Object.entries(FK).map(([k,l])=>`<button class="fchip${a.k===k?' on':''}" data-k="${k}">${l}</button>`).join('')}</div></div>
-   <div class="fld"><label>Who</label><div class="row" style="gap:6px;flex-wrap:wrap" id="fmW">${S.signers.map((w,i)=>`<button class="fchip${a.who===w?' on':''}" data-w="${i}"><i style="background:${FLDC[i%FLDC.length]}"></i>${esc(w)}</button>`).join('')}</div></div>
+   <div class="fld"><label>Who</label><div class="row" style="gap:6px;flex-wrap:wrap" id="fmW"><button class="fchip${a.who===ME?' on':''}" data-w="-1"><i style="background:${MEC}"></i>${esc(whoName(ME))}</button>${S.signers.map((w,i)=>`<button class="fchip${a.who===w?' on':''}" data-w="${i}"><i style="background:${FLDC[i%FLDC.length]}"></i>${esc(w)}</button>`).join('')}</div></div>
    <div class="btns"><button class="btn red l" id="fmDel">Delete box</button><button class="btn pri" data-x>Done</button></div>`);
   const A=()=>getPg(pg.id).annots.find(x=>x.fid===a.fid);
   m.querySelectorAll('#fmK [data-k]').forEach(b=>b.onclick=()=>{snapshot();A().k=b.dataset.k;m.querySelectorAll('#fmK button').forEach(x=>x.classList.toggle('on',x===b));drawOverlay(e)});
-  m.querySelectorAll('#fmW [data-w]').forEach(b=>b.onclick=()=>{snapshot();A().who=S.signers[+b.dataset.w];m.querySelectorAll('#fmW button').forEach(x=>x.classList.toggle('on',x===b));drawOverlay(e);renderProps()});
+  m.querySelectorAll('#fmW [data-w]').forEach(b=>b.onclick=()=>{snapshot();A().who=+b.dataset.w<0?ME:S.signers[+b.dataset.w];m.querySelectorAll('#fmW button').forEach(x=>x.classList.toggle('on',x===b));drawOverlay(e);renderProps()});
   $('#fmDel').onclick=()=>{snapshot();const P=getPg(pg.id),i=P.annots.findIndex(x=>x.fid===a.fid);if(i>=0)P.annots.splice(i,1);closeModal();drawOverlay(e);renderProps();updateUI()}}
 function fldNames(){
   const m=openModal(`<h3>People signing</h3><p class="small" style="margin-top:-4px">For example Buyer 1, Buyer 2, Seller. Each person gets their own colour.</p>
+   <div class="fld"><label><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${MEC};margin-right:6px"></i>You <span class="small">(your boxes use your saved signature)</span></label><input type="text" id="fnMe" value="${esc(whoName(ME))}" autocomplete="off"></div>
    ${S.signers.map((w,i)=>`<div class="fld"><label><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${FLDC[i%FLDC.length]};margin-right:6px"></i>Person ${i+1}</label><input type="text" data-i="${i}" value="${esc(w)}" autocomplete="off"></div>`).join('')}
    <div class="btns"><button class="btn" data-x>Cancel</button><button class="btn pri" id="fnOk">Save</button></div>`);
   $('#fnOk').onclick=()=>{const used=new Set(fldAll().map(x=>x.a.who)),out=[],ren={};
     m.querySelectorAll('input[data-i]').forEach(inp=>{const old=S.signers[+inp.dataset.i],v=inp.value.trim().slice(0,40);
       if(!v){if(used.has(old)){out.push(old)}return}let nv=v,k=2;while(out.includes(nv))nv=v+' '+k++;out.push(nv);if(nv!==old)ren[old]=nv});
+    lsSet('foliotest.meName',($('#fnMe').value.trim()||'Me').slice(0,40));
     if(!out.length)out.push('Signer 1');snapshot();fldAll().forEach(x=>{if(ren[x.a.who])x.a.who=ren[x.a.who]});S.signers=out;S.fwho=Math.min(S.fwho,out.length-1);closeModal();redrawAll();renderProps()}}
 /* a signature or initials pad for the person signing (never uses or changes your own saved signature) */
 function padModal(title,ini,cb){
@@ -1209,7 +1213,7 @@ function padModal(title,ini,cb){
     const pad=6;x0=Math.max(0,x0-pad);y0=Math.max(0,y0-pad);x1=Math.min(cv.width,x1+pad);y1=Math.min(cv.height,y1+pad);
     const t=document.createElement('canvas');t.width=x1-x0;t.height=y1-y0;t.getContext('2d').drawImage(cv,x0,y0,t.width,t.height,0,0,t.width,t.height);
     closeModal();cb(t.toDataURL('image/png'),t.height/t.width)}}
-function gsOrder(){const L=fldLeft();return[...S.signers,...L.map(x=>x.a.who)].filter((w,i,arr)=>arr.indexOf(w)===i&&L.some(x=>x.a.who===w))}
+function gsOrder(){const L=fldLeft();return[ME,...S.signers,...L.map(x=>x.a.who)].filter((w,i,arr)=>arr.indexOf(w)===i&&L.some(x=>x.a.who===w))}
 function gsItems(who){   // reading order: page by page, top to bottom, then left to right
   const cy=a=>(a.a[1]+a.b[1])/2,lx=a=>Math.min(a.a[0],a.b[0]);   // boxes on the same line (within ~12 pt) go left to right
   return fldAll().filter(x=>x.a.who===who).sort((p,q)=>p.pi-q.pi||(Math.abs(cy(p.a)-cy(q.a))<12?lx(p.a)-lx(q.a):cy(q.a)-cy(p.a))).map(x=>({pid:x.pg.id,fid:x.a.fid}))}
@@ -1218,21 +1222,25 @@ function startSigning(){finishInline();if(!fldLeft().length){toast('Add some sig
 function gsHandoff(){const who=gsOrder()[0];gsEnd();if(!who){gsFinish();return}
   const L=fldLeft(who),c=k=>L.filter(x=>x.a.k===k).length,parts=[['sig','signature'],['ini','initial'],['date','date']].map(([k,w])=>c(k)?c(k)+' '+w+(c(k)>1?'s':''):'').filter(Boolean);
   const first=!fldAll().some(x=>x.a.done);
-  openModal(`<h3>${first?'Hand to':'Pass to'} ${esc(who)}</h3><p style="margin-top:-2px">${L.length} place${L.length>1?'s':''} to fill in: ${parts.join(', ')}.</p>
-   <p class="small">Folio takes you to each one in turn. You sign once, then each later box takes a single tap.</p>
+  openModal((who===ME?`<h3>Your boxes first</h3><p style="margin-top:-2px">${L.length} place${L.length>1?'s':''} for you: ${parts.join(', ')}.</p>
+   <p class="small">Each takes one tap using your saved signature and initials. If you haven't saved them yet, you'll draw them once.</p>`
+   :`<h3>${first?'Hand to':'Pass to'} ${esc(who)}</h3><p style="margin-top:-2px">${L.length} place${L.length>1?'s':''} to fill in: ${parts.join(', ')}.</p>
+   <p class="small">Folio takes you to each one in turn. You sign once, then each later box takes a single tap.</p>`)+`
    <div class="btns"><button class="btn" data-x>Not now</button><button class="btn pri" id="gsGo">Start</button></div>`);
   $('#gsGo').onclick=()=>{closeModal();if(S.tool!=='hand')setTool('hand');Object.assign(GS,{on:true,who,sig:null,ini:null,items:gsItems(who)});GS.k=GS.items.findIndex(it=>{const f=gsFind(it);return f&&!f.a.done});
     document.body.classList.add('gsOn');$('#gsBar').classList.add('on');gsShow()}}
 function gsShow(){const it=GS.items[GS.k],f=it&&gsFind(it);if(!f){gsNext();return}
   GS.fid=f.a.fid;redrawAll();const n=GS.items.length,done=GS.items.filter(x=>{const g=gsFind(x);return g&&g.a.done}).length;
-  $('#gsWho').textContent=GS.who;$('#gsN').textContent=`${GS.k+1} of ${n} · ${FK[f.a.k]}${done?` · ${done} done`:''}`;
+  $('#gsWho').textContent=whoName(GS.who);$('#gsN').textContent=`${GS.k+1} of ${n} · ${FK[f.a.k]}${done?` · ${done} done`:''}`;
   $('#gsAct').textContent=f.a.k==='date'?'Add today’s date':f.a.k==='sig'?(GS.sig?'Add my signature':'Sign'):(GS.ini?'Add my initials':'Initial');
   $('#gsBack').disabled=!done;
   const e=els.get(f.pg.id);if(e){const b=bbox(f.a,e.vp,rot(f.pg)),v=$('#viewer');v.scrollTo({top:e.el.offsetTop+b[1]-v.clientHeight*.38,left:Math.max(0,e.el.offsetLeft+b[0]-40),behavior:'smooth'})}}
 function gsAct(){const it=GS.items[GS.k],f=it&&gsFind(it);if(!f)return;const{pg,a}=f;
   if(a.k==='date'){gsApply(pg,a,null);return}
   const have=a.k==='sig'?GS.sig:GS.ini;if(have){gsApply(pg,a,have);return}
-  padModal(`${GS.who}: ${a.k==='sig'?'signature':'initials'}`,a.k==='ini',(url,ratio)=>{const s={key:regImg(url,'png'),ratio};if(a.k==='sig')GS.sig=s;else GS.ini=s;gsApply(pg,a,s)})}
+  const keep=s=>{if(a.k==='sig')GS.sig=s;else GS.ini=s;gsApply(pg,a,s)},key=a.k==='sig'?'foliotest.sig':'foliotest.ini';
+  if(GS.who===ME){const url=lsGet(key);if(url){const im=new Image();im.onload=()=>keep({key:regImg(url,'png'),ratio:im.height/im.width});im.src=url;return}}
+  padModal(`${whoName(GS.who)}: ${a.k==='sig'?'signature':'initials'}`,a.k==='ini',(url,ratio)=>{if(GS.who===ME)lsSet(key,url);keep({key:regImg(url,'png'),ratio})})}
 function gsApply(pg0,a0,img){snapshot();const pg=getPg(pg0.id),a=pg.annots.find(x=>x.fid===a0.fid),e=els.get(pg.id);if(!a||!e)return;
   const vp=e.vp,[x1,y1]=vp.convertToViewportPoint(...a.a),[x2,y2]=vp.convertToViewportPoint(...a.b),bx=Math.min(x1,x2),by=Math.min(y1,y2),bw=Math.abs(x2-x1),bh=Math.abs(y2-y1),sc=S.scale;
   if(img){let iw=bw*.94,ih=iw*img.ratio;if(ih>bh*.9){ih=bh*.9;iw=ih/img.ratio}
@@ -1249,7 +1257,7 @@ function gsUndo(){let best=-1,at=0;GS.items.forEach((it,i)=>{const f=gsFind(it);
   snapshot();const f=gsFind(GS.items[best]);f.pg.annots=f.pg.annots.filter(x=>x.of!==f.a.fid);const a=f.pg.annots.find(x=>x.fid===f.a.fid);a.done=false;delete a.at;delete a.by;
   GS.k=best;const e=els.get(f.pg.id);if(e)drawOverlay(e);gsShow()}
 function gsEnd(){if(!GS.on)return;GS.on=false;GS.fid=null;document.body.classList.remove('gsOn');$('#gsBar').classList.remove('on');redrawAll();renderProps()}
-function gsFinish(){const D=fldAll().filter(x=>x.a.done),who=[...new Set(D.map(x=>x.a.by||x.a.who))];renderProps();
+function gsFinish(){const D=fldAll().filter(x=>x.a.done),who=[...new Set(D.map(x=>whoName(x.a.by||x.a.who)))];renderProps();
   openModal(`<h3>All signed ✓</h3><p style="margin-top:-2px">${D.length} place${D.length>1?'s':''} filled in by ${esc(who.join(', '))}.</p>
    <label class="row" style="gap:10px;align-items:flex-start;margin-top:6px"><input type="checkbox" id="gsRec" checked style="margin-top:3px;width:18px;height:18px;accent-color:var(--acc)"><span>Add a signing record page at the end<br><span class="small">Lists who signed each place, and the date and time, from this device.</span></span></label>
    <div class="btns"><button class="btn" id="gsLater">Close</button><button class="btn pri" id="gsSave">Save PDF</button></div>`);
@@ -1261,7 +1269,7 @@ async function gsRecord(D){try{const{PDFDocument,StandardFonts,rgb}=PDFLib,doc=a
     const row=(a,b,c,d,font)=>{page.drawText(safe(a),{x:54,y,size:10,font});page.drawText(safe(b),{x:200,y,size:10,font});page.drawText(safe(c),{x:290,y,size:10,font});page.drawText(safe(d),{x:350,y,size:10,font})};
     row('Person','What','Page','Date and time',fb);y-=8;page.drawLine({start:{x:54,y},end:{x:558,y},thickness:.7,color:rgb(.75,.78,.82)});y-=16;
     const L=[...D].sort((p,q)=>(p.a.at||0)-(q.a.at||0));
-    for(const x of L){if(y<80){page=doc.addPage([612,792]);y=730}row(x.a.by||x.a.who,FK[x.a.k],String(x.pi+1),x.a.at?new Date(x.a.at).toLocaleString('en-CA',{dateStyle:'medium',timeStyle:'medium'}):'',f);y-=18}
+    for(const x of L){if(y<80){page=doc.addPage([612,792]);y=730}row(whoName(x.a.by||x.a.who),FK[x.a.k],String(x.pi+1),x.a.at?new Date(x.a.at).toLocaleString('en-CA',{dateStyle:'medium',timeStyle:'medium'}):'',f);y-=18}
     y-=14;page.drawText('Signed in person on one device using Folio. Dates and times come from that device.',{x:54,y,size:9,font:f,color:rgb(.4,.43,.47)});
     snapshot();const np=await addSource(await doc.save(),'Signing record');np.forEach(p=>p.rec=1);S.pages.push(...np);relayout(true);toast('Signing record added at the end')}
   catch(e){console.warn(e);toast('Couldn’t add the signing record')}}
@@ -1284,7 +1292,7 @@ function setTool(t){finishInline();if(t==='text')t='edittext';
   if(t==='initial'){openSign(true);return}
   if(t==='image'){if(!S.pages.length)toast('Open a PDF first');return}
   if(t==='wmark'){wmMenu();return}
-  if(t!=='place')S.pending=null;
+  if(t!=='place'){S.pending=null;S.pendNew=null}
   S.tool=t;
   $('#pages').className=((t==='hand'||t==='rotpage')?'hand':t==='select'?'select':t==='edittext'?'select':'')+(TAPT.has(t)?' tap':'');
   if(t!=='select'&&S.sel)setSel(null);if(S.msel)setMsel(null);
@@ -1295,6 +1303,7 @@ function renderProps(){
   const hints={field:'',hand:'Drag to scroll, pinch to zoom, double-tap to fit. Pick a tool below to edit.',select:'Tap an item to select it, then drag to move, or pinch / drag the round corner handle to resize. Drag to scroll; press and hold, then drag a box to select several.',wo:'Drag over anything to cover it with white.',edittext:'Tap words to change them, or tap an empty spot to add text. Drag to scroll. Press and hold, then drag, to pick exact lines.',place:'Tap on a page to place it.'};
   if(t==='field'){const n=fldLeft().length;
     p.innerHTML=`${Object.entries(FK).map(([k,l])=>`<button class="fchip${S.fk===k?' on':''}" data-fk="${k}">${l}</button>`).join('')}<span class="chipsep"></span>
+      <button class="fchip${S.fwho===-1?' on':''}" data-fw="-1"><i style="background:${MEC}"></i>${esc(whoName(ME))}</button>
       ${S.signers.map((w,i)=>`<button class="fchip${S.fwho===i?' on':''}" data-fw="${i}"><i style="background:${FLDC[i%FLDC.length]}"></i>${esc(w)}</button>`).join('')}
       <button class="fchip" id="fAdd" title="Add a person">+ Person</button><button class="fchip" id="fNames">Names…</button>
       <button class="btn pri" id="fGo" style="height:34px;white-space:nowrap;flex:none" ${n?'':'disabled'}>Start signing${n?' ('+n+')':''}</button>
@@ -1318,11 +1327,12 @@ function renderProps(){
     if(t==='text')h+=`<input type="range" id="pW" min="6" max="48" step="1" value="${S.fontSize}"><span class="val" id="pWv">${S.fontSize} pt</span><span class="hint">Tap a page to type</span>`;
     if(t==='hl')h+='<span class="hint">Drag over text to highlight</span>';
     if(k==='mark')h+='<span class="hint">Tap to stamp</span>';
-  }else h=`<span class="hint">${hints[t]||''}</span>`+(t==='place'?' <button class="link" id="pCancel">Cancel</button>':'');
+  }else h=`<span class="hint">${hints[t]||''}</span>`+(t==='place'?' <button class="link" id="pCancel">Cancel</button>'+(S.pendNew?' <button class="link" id="pNew">Draw a new one</button>':''):'');
   p.innerHTML=h;
   p.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{S.colors[k]=b.dataset.c;renderProps()});
   const r=$('#pW');if(r)r.oninput=()=>{const v=+r.value;if(t==='text')S.fontSize=v;else S.widths[t==='pen'?'pen':'shape']=v;$('#pWv').textContent=v+' pt'};
   const c=$('#pCancel');if(c)c.onclick=()=>setTool('select');
+  const nw=$('#pNew');if(nw)nw.onclick=()=>{const ini=S.pendNew==='ini';setTool('select');openSign(ini,true)};
 }
 function renderSelbar(){
   const b=$('#selbar');
@@ -1423,9 +1433,11 @@ function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function regImg(data,kind){const key='i'+(uid++);S.imgs[key]={data,kind};return key}
 function startPlace(data,kind,wpt,ratio){const key=regImg(data,kind);S.pending={key,w:wpt,h:wpt*ratio};setTool('place');toast('Tap on a page to place it')}
-function openSign(ini){
+function openSign(ini,draw){
   const key=ini?'foliotest.ini':'foliotest.sig',W=ini?60:150;
-  const saved=lsGet(key);let color=lsGet(key+'c')||'#111827';
+  const saved=lsGet(key);
+  // a saved signature / initials is placed straight away; "Draw a new one" is offered while placing
+  if(saved&&!draw){const im=new Image();im.onload=()=>{startPlace(saved,'png',W,im.height/im.width);S.pendNew=ini?'ini':'sig';renderProps()};im.src=saved;return}let color=lsGet(key+'c')||'#111827';
   const m=openModal(`<h3>${ini?'Your initials':'Your signature'}</h3><canvas id="sigPad"${ini?' class="ini"':''}></canvas>
    <div class="row" style="justify-content:space-between"><div class="sw" id="sgSw">${['#111827','#1d4ed8'].map(c=>`<button data-c="${c}" style="background:${c}"></button>`).join('')}</div><span class="small">${ini?'Write your initials':'Sign'} with your finger or mouse</span></div>
    <div class="btns">${saved?'<button class="btn l" id="sgSaved">Use saved</button>':''}<button class="btn" id="sgClr">Clear</button><button class="btn" data-x>Cancel</button><button class="btn pri" id="sgOk">Place</button></div>`);
@@ -1785,6 +1797,7 @@ async function openSave(){
    <label class="row" style="gap:10px"><input type="checkbox" id="svDl" ${dl?'checked':''} style="width:18px;height:18px;accent-color:var(--acc)"><span>Also download to this phone</span></label>
    ${canShareFiles()?`<label class="row" style="gap:10px"><input type="checkbox" id="svSh" ${lsGet('foliotest.svsh')==='1'?'checked':''} style="width:18px;height:18px;accent-color:var(--acc)"><span>Share after saving <span class="small">(email, Messages, WhatsApp…)</span></span></label>`:''}
    ${S.sources.some(s=>s.fields&&s.fields.length)?`<label class="row" style="gap:10px;align-items:flex-start"><input type="checkbox" id="svLock" style="width:18px;height:18px;margin-top:2px;accent-color:var(--acc)"><span>Lock form fields<br><span class="small">Your answers become part of the page and can't be changed by others.</span></span></label>`:''}
+   ${S.pages.some(p=>p.annots.some(a=>a.t==='fld'&&a.done))?`<label class="row" style="gap:10px;align-items:flex-start"><input type="checkbox" id="svSig" checked style="width:18px;height:18px;margin-top:2px;accent-color:var(--acc)"><span>Lock signed pages<br><span class="small">Pages with signatures are saved as pictures, so the text, signatures and dates on them can't be edited or moved. Their text can't be selected afterwards.</span></span></label>`:''}
    <p class="small" style="margin:14px 0 6px"><b>Colour</b></p>
    <div class="seg" id="svLook" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">${[['orig','Original'],['auto','Auto'],['gray','Grayscale'],['bw','Black & white']].map(([k,l])=>`<button class="btn" data-lk="${k}" style="height:40px;padding:0 4px;font-size:13px;${k==='orig'?'background:var(--acc);color:#fff;border-color:var(--acc)':''}">${l}</button>`).join('')}</div>
    <p class="small" id="svLookN" style="display:none;color:#d97706;margin:6px 0 0">Pages are saved as pictures in this look, so text can't be selected or edited afterwards. Save an Original copy too if you may need to edit it.</p>
@@ -1792,10 +1805,11 @@ async function openSave(){
   folderPickerWire();let svLook='orig';
   document.querySelectorAll('#svLook [data-lk]').forEach(b=>b.onclick=()=>{svLook=b.dataset.lk;document.querySelectorAll('#svLook [data-lk]').forEach(o=>{const on=o===b;o.style.background=on?'var(--acc)':'';o.style.color=on?'#fff':'';o.style.borderColor=on?'var(--acc)':''});$('#svLookN').style.display=svLook==='orig'?'none':'block'});
   $('#svOk').onclick=async()=>{let n=$('#svName').value.trim()||'document.pdf';if(!/\.pdf$/i.test(n))n+='.pdf';S.name=n;
-    const folder=folderPickerValue(),wantDl=$('#svDl').checked,rep=$('#svRep')&&$('#svRep').checked,lock=!!($('#svLock')&&$('#svLock').checked),wantSh=!!($('#svSh')&&$('#svSh').checked);
+    const folder=folderPickerValue(),wantDl=$('#svDl').checked,rep=$('#svRep')&&$('#svRep').checked,lock=!!($('#svLock')&&$('#svLock').checked),sigLock=!!($('#svSig')&&$('#svSig').checked),wantSh=!!($('#svSh')&&$('#svSh').checked);
     if(!folder&&!wantDl&&!wantSh){toast('Choose a folder, or tick download or share');return}lsSet('foliotest.svsh',wantSh?'1':'0');
     lsSet('foliotest.dl.doc',wantDl?'1':'0');if(folder)lsSet('foliotest.lastFolder.doc',folder);closeModal();busy('Building PDF…');await tick();let bytes;
-    try{bytes=await exportPdf({flatten:lock});if(exportPdf.last&&exportPdf.last.pictured)toast(`${exportPdf.last.pictured} page${exportPdf.last.pictured>1?'s':''} with white-out saved as a picture, so nothing hidden is kept`,4500);if(svLook!=='orig')bytes=await pdfLook(bytes,svLook,(i,n)=>busy(`Applying colour… page ${i} of ${n}`))}catch(err){console.error(err);unbusy();toast('Could not build the PDF: '+(err.message||err),5000);return}
+    const sigPages=S.pages.map((p,i)=>p.annots.some(a=>a.t==='fld'&&a.done)?i:-1).filter(i=>i>=0);
+    try{bytes=await exportPdf({flatten:lock||sigLock});if(sigLock&&sigPages.length){busy('Locking signed pages…');bytes=await RD.picturePages(bytes,new Set(sigPages))}if(exportPdf.last&&exportPdf.last.pictured)toast(`${exportPdf.last.pictured} page${exportPdf.last.pictured>1?'s':''} with white-out saved as a picture, so nothing hidden is kept`,4500);if(svLook!=='orig')bytes=await pdfLook(bytes,svLook,(i,n)=>busy(`Applying colour… page ${i} of ${n}`))}catch(err){console.error(err);unbusy();toast('Could not build the PDF: '+(err.message||err),5000);return}
     let askRc=null;if(folder){busy('Saving to Library…');try{const id=await libSave(n,folder,bytes,rep?S.libId:null);S.libId=id;S.libFolder=folder;toast(`Saved to ${folder}`);if(isReceiptFolder(folder)){const nd=await libGet(id);if(nd&&!nd.receipt)askRc=nd}}catch(e){console.error(e);toast('Could not save to Library: '+(e.message||e),4500)}}
     if(askRc)setTimeout(()=>openReceiptDetails(askRc,true),400);
     S.dirty=false;unbusy();if(wantDl)offerDownload(n,bytes);if(wantSh)setTimeout(()=>readyShare([{name:n,bytes}]),askRc?0:200)};
