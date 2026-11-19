@@ -135,6 +135,9 @@ body.norc .rcx{display:none!important}
 .modal .row label{font-size:13px;color:var(--muted);min-width:40px}
 .modal .row input[type=range]{flex:1;accent-color:var(--acc)}
 .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.acList{display:none;position:absolute;left:0;right:0;top:100%;z-index:30;margin-top:4px;background:var(--card,#fff);color:inherit;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.2);overflow:hidden}
+.acList.on{display:block}.acList button{display:block;width:100%;text-align:left;padding:11px 12px;border:0;border-bottom:1px solid var(--line);background:none;color:inherit;font:inherit;font-size:15px}
+.acList button:last-child{border-bottom:0}.acList button:active{background:var(--acc2)}.acList small{display:block;color:var(--muted);font-size:12px;margin-top:1px}
 /* a form's main buttons stay in view at the bottom of the box, even on short landscape screens */
 .modal>.btns:last-child{position:sticky;bottom:-18px;background:inherit;margin:16px -18px -18px;padding:10px 18px 14px;z-index:3;box-shadow:0 -8px 12px -10px rgba(0,0,0,.25)}
 @media (max-height:520px){#modalWrap{padding:6px}.modal{max-height:calc(100dvh - 12px);padding:14px 18px 18px}#sigPad{height:120px}#sigPad.ini{height:110px}.modal h3{margin-bottom:8px}}
@@ -3888,6 +3891,15 @@ function ivBizSnap(){const b=ivBiz();const s={...b};delete s.logo;delete s.terms
 function ivBizOf(v){if(!v||!v.biz)return ivBiz();const s={...v.biz};s.logo=s.logoKey?(ivLogos()[s.logoKey]||''):'';return s}
 function ivClients(){try{return JSON.parse(lsGet(ivClKey)||'[]')||[]}catch(e){return[]}}
 function ivSaveClients(c){lsSet(ivClKey,JSON.stringify(c))}
+/* saved-client suggestions under a name box. Our own list rather than the browser's, because phone browsers
+   handle that unreliably (in Samsung Internet tapping a suggestion doesn't fill the box). */
+function clientPicker(inp,onPick){
+  if(!inp)return;inp.removeAttribute('list');const box=document.createElement('div');box.className='acList';inp.parentNode.style.position='relative';inp.after(box);
+  const hide=()=>box.classList.remove('on');
+  const show=()=>{const q=inp.value.trim().toLowerCase(),m=ivClients().filter(c=>c.name&&(!q||c.name.toLowerCase().includes(q))&&c.name.toLowerCase()!==q).sort((a,b)=>(b.name.toLowerCase().startsWith(q))-(a.name.toLowerCase().startsWith(q))||a.name.localeCompare(b.name)).slice(0,6);
+    box.innerHTML=m.map((c,i)=>`<button type="button" data-k="${i}"><b>${esc(c.name)}</b>${c.email?`<small>${esc(c.email)}</small>`:''}</button>`).join('');box.classList.toggle('on',m.length>0);
+    box.querySelectorAll('button').forEach(b=>{b.addEventListener('pointerdown',e=>e.preventDefault());b.onclick=()=>{const c=m[+b.dataset.k];inp.value=c.name;hide();onPick&&onPick(c);inp.dispatchEvent(new Event('input',{bubbles:true}))}})};
+  inp.addEventListener('focus',()=>{show();if(ivClients().length)setTimeout(()=>{const r=inp.getBoundingClientRect();if(r.bottom>innerHeight*.45)inp.scrollIntoView({block:'start',behavior:'smooth'})},350)});inp.addEventListener('input',show);inp.addEventListener('blur',()=>setTimeout(hide,180));inp.addEventListener('keydown',e=>{if(e.key==='Escape'||e.key==='Enter')hide()})}
 const ivToday=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const ivAddDays=(iso,n)=>{const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
 const ivNum=no=>parseInt(String(no||'').replace(/\D/g,''))||0;
@@ -4048,6 +4060,7 @@ function incEdit(id){
    <div class="btns">${old?'<button class="btn red l" id="icDel">Delete</button>':''}<button class="btn" data-x>Cancel</button><button class="btn pri" id="icSave">Save</button></div>`);
   paintIcons($('#modal'));
   $('#ivClientList').innerHTML=ivClients().map(c=>`<option value="${esc(c.name)}">`).join('');
+  clientPicker($('#icFrom'));
   const typed=new Set();['icDate','icFrom','icDesc','icAmt','icMethod','icNote'].forEach(id=>{const el=$('#'+id);if(el)el.addEventListener(el.tagName==='SELECT'?'change':'input',()=>typed.add(id))});
   /* read the amount, date, payer and method from the proof and fill the boxes that are still empty */
   const readProof=async bytes=>{const say=t=>{const e=$('#icProof')&&$('#icProof').querySelector('.mt .small');if(e)e.textContent=t};
@@ -4385,6 +4398,7 @@ function ivForm(){
   ivItems();ivTots();ivBrandUI();
   F.oninput=e=>{if(e.target.id==='bzColor')return;IV.dirty=true;ivRead();if(e.target.closest('#ivItems')||/ivTax/.test(e.target.id)){ivTots();ivAmts()}};
   F.onchange=e=>{if(e.target.id==='clName')ivPickClient();F.oninput(e)};
+  clientPicker($('#clName'),c=>{$('#clEmail').value=c.email||'';$('#clAddr').value=c.address||'';IV.dirty=true;ivRead()});
   $('#clName').addEventListener('input',()=>{if(ivClients().some(c=>c.name.toLowerCase()===$('#clName').value.trim().toLowerCase())&&!$('#clEmail').value&&!$('#clAddr').value)ivPickClient()});
   $('#ivPaid').onchange=()=>{IV.dirty=true;$('#ivPaidOnW').style.display=$('#ivPaid').checked?'':'none';ivRead()};
   $('#ivAddItem').onclick=()=>{ivRead();IV.cur.items.push({desc:'',qty:'1',rate:''});IV.dirty=true;ivItems();ivTots();const r=$('#ivItems').lastElementChild;r&&r.querySelector('input').focus()};
