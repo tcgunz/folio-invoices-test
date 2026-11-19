@@ -438,7 +438,7 @@ body.ci #menu [data-m=region] .ic{color:var(--c-sky)}body.ci #menu [data-m=rctog
     <hr>
     <button data-m="about"><span class="ic" data-i="info"></span>About, terms &amp; licences</button>
     <button data-m="close"><span class="ic" data-i="x"></span>Close document</button>
-    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 102<br>© 2026 Tommy Chieng. All rights reserved.</div>
+    <div class="small" style="padding:6px 12px 4px;opacity:.7">Folio TRIAL (invoices) · based on version 103<br>© 2026 Tommy Chieng. All rights reserved.</div>
   </div>
 </div>
 
@@ -883,21 +883,25 @@ function fitWidth(doLayout=true){S.fit='width';
 function relayout(keep=true){finishInline();
   if(S.pages.length){const m=minScale();if(S.scale<m)S.scale=m;const[mw]=pageMax();$('#pages').classList.toggle('two',WIDE()&&S.pages.length>1&&2*mw*S.scale+14<=$('#viewer').clientWidth-24)}
   const v=$('#viewer');const ratio=keep&&v.scrollHeight?v.scrollTop/v.scrollHeight:0;
-  els.forEach(e=>{try{e.task&&e.task.cancel()}catch(_){}});els.clear();
-  if(io)io.disconnect();
-  io=new IntersectionObserver(en=>en.forEach(x=>{if(x.isIntersecting){const e=els.get(+x.target.dataset.id);if(e&&!e.rendered)renderPage(e)}}),{root:v,rootMargin:'900px 0px'});
+  // after a zoom, the old pictures stay up (stretched) until the sharp ones are ready, instead of going blank
+  const oldC=new Map();els.forEach(e=>{try{e.task&&e.task.cancel()}catch(_){}if(e.rendered&&e.c1.width)oldC.set(e.id,{c:e.c1,ar:e.vp.width/e.vp.height})});els.clear();RQ.gen++;
+  if(io)io.disconnect();if(ioFar)ioFar.disconnect();
+  io=new IntersectionObserver(en=>en.forEach(x=>{const e=els.get(+x.target.dataset.id);if(!e)return;e.want=x.isIntersecting;if(e.want){ensureOv(e);queueRender()}}),{root:v,rootMargin:'700px 0px'});
+  // pages far off screen give their memory back (a 60-page document would otherwise hold every page as a big picture)
+  ioFar=new IntersectionObserver(en=>en.forEach(x=>{if(x.isIntersecting)return;const e=els.get(+x.target.dataset.id);if(!e)return;
+    try{e.task&&e.task.cancel()}catch(_){}e.rendered=false;e.c1.width=e.c1.height=0;e.c2.width=e.c2.height=0}),{root:v,rootMargin:'2600px 0px'});
   const box=$('#pages');box.innerHTML='';
   S.pages.forEach((pg,i)=>{
     const vp=getVP(pg);
     const el=document.createElement('div');el.className='pg';el.dataset.id=pg.id;
     el.style.width=Math.floor(vp.width)+'px';el.style.height=Math.floor(vp.height)+'px';
-    const c1=document.createElement('canvas'),c2=document.createElement('canvas');c2.className='ov';
+    const o=oldC.get(pg.id),c1=o&&Math.abs(o.ar-vp.width/vp.height)<.01?o.c:document.createElement('canvas'),c2=document.createElement('canvas');c2.className='ov';c2.width=c2.height=0;
     const lab=document.createElement('div');lab.className='pnum';lab.textContent=(i+1);
     el.append(c1,c2,lab);box.append(el);
     const e={id:pg.id,el,c1,c2,vp,rendered:false};
-    let dpr=Math.min(window.devicePixelRatio||1,3);while(vp.width*vp.height*dpr*dpr>16e6&&dpr>.6)dpr*=.85;e.dpr=dpr;
-    c2.width=Math.round(vp.width*dpr);c2.height=Math.round(vp.height*dpr);
-    bindOverlay(e);els.set(pg.id,e);drawOverlay(e);io.observe(el);
+    // sharpness: twice the screen's pixels is plenty for documents; very large zooms are capped so a page stays light
+    let dpr=Math.min(window.devicePixelRatio||1,2);while(vp.width*vp.height*dpr*dpr>8e6&&dpr>.6)dpr*=.85;e.dpr=dpr;
+    bindOverlay(e);els.set(pg.id,e);io.observe(el);ioFar.observe(el);
   });
   $('#empty').style.display=S.pages.length?'none':'flex';
   $('#zVal').textContent=Math.round(S.scale*100)+'%';
@@ -905,11 +909,20 @@ function relayout(keep=true){finishInline();
   if($('#dPages').classList.contains('on'))renderThumbs();
   renderSelbar();updateUI();onScroll();
 }
+/* pages are drawn one at a time, the one nearest the middle of the screen first, so the page you're looking at
+   never waits behind pages you've already scrolled past */
+const RQ={busy:false,gen:0};let ioFar=null;
+function ensureOv(e){if(e.c2.width)return;e.c2.width=Math.round(e.vp.width*e.dpr);e.c2.height=Math.round(e.vp.height*e.dpr);drawOverlay(e)}
+function queueRender(){if(RQ.busy)return;const v=$('#viewer'),vr=v.getBoundingClientRect(),mid=vr.top+vr.height/2;let best=null,bd=1e9;
+  els.forEach(e=>{if(!e.want||e.rendered)return;const r=e.el.getBoundingClientRect(),d=Math.abs((r.top+r.bottom)/2-mid);if(d<bd){bd=d;best=e}});
+  if(!best)return;RQ.busy=true;const g=RQ.gen;renderPage(best).catch(()=>{}).finally(()=>{RQ.busy=false;if(g===RQ.gen||!RQ.busy)queueRender()})}
 async function renderPage(e){
   e.rendered=true;const pg=getPg(e.id);if(!pg)return;
   const p=srcPage(pg);const hv=p.getViewport({scale:S.scale*e.dpr,rotation:rot(pg)});
-  e.c1.width=Math.floor(hv.width);e.c1.height=Math.floor(hv.height);
-  try{e.task=p.render({canvasContext:e.c1.getContext('2d'),viewport:hv});await e.task.promise}catch(err){}
+  const nc=document.createElement('canvas');nc.width=Math.floor(hv.width);nc.height=Math.floor(hv.height);
+  try{e.task=p.render({canvasContext:nc.getContext('2d'),viewport:hv});await e.task.promise}catch(err){if(err&&err.name==='RenderingCancelledException'){e.rendered=false;return}}
+  if(!els.has(e.id)||els.get(e.id)!==e||!e.rendered)return;   // zoomed or scrolled away meanwhile
+  if(e.c1.parentNode===e.el)e.el.replaceChild(nc,e.c1);else e.el.prepend(nc);const old=e.c1;e.c1=nc;if(old!==nc&&!old.isConnected){old.width=old.height=0}
   // links in the PDF: remember where they are and mark them lightly
   try{const an=await p.getAnnotations({intent:'display'});e.links=an.filter(a=>a.subtype==='Link'&&a.rect&&(a.url||a.unsafeUrl||a.dest)).map(a=>({rect:a.rect,url:a.url||a.unsafeUrl||'',dest:a.dest||null}));
     e.el.querySelectorAll('.plink').forEach(x=>x.remove());
