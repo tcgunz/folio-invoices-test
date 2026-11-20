@@ -10,7 +10,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Folio Trial — Invoices</title>
-<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#0f766e"><link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#4f46e5"><link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -327,7 +327,7 @@ table.xs tfoot td{font-weight:700;padding:10px 8px;background:#f9fafb}
 #selbar span{font-size:11px}
 :root{--accd:#3730a3;--sacc:#818cf8;--hdr:#fff}
 body[data-theme=indigo]{--acc:#4f46e5;--accd:#4338ca;--acc2:#eef2ff;--bg:#f2f3f9;--line:#e3e5ef;--sacc:#818cf8}
-body[data-theme=ocean]{--acc:#0284c7;--accd:#0369a1;--acc2:#e0f2fe;--bg:#eff5f9;--line:#dfe8ef;--sacc:#38bdf8}
+body[data-theme=ocean]{--acc:#0369a1;--accd:#075985;--acc2:#e0f2fe;--bg:#eff5f9;--line:#dfe8ef;--sacc:#38bdf8}
 body[data-theme=teal]{--acc:#0f766e;--accd:#0b5f58;--acc2:#e6f4f2;--bg:#edf1f1;--line:#e2e7e7;--sacc:#2dd4bf}
 body[data-theme=forest]{--acc:#15803d;--accd:#166534;--acc2:#dcfce7;--bg:#f1f5f2;--line:#e0e8e2;--sacc:#4ade80}
 body[data-theme=rose]{--acc:#be185d;--accd:#9d174d;--acc2:#fce7f3;--bg:#faf4f7;--line:#efe2e8;--sacc:#f472b6}
@@ -385,11 +385,11 @@ body[data-theme=rose]{--acc:#be185d;--accd:#9d174d;--acc2:#fce7f3;--bg:#faf4f7;-
 .lvth span{background:var(--sacc)}
 
 /* ===== colourful icons (switch off in Menu > Theme) ===== */
-body.ci{--c-blue:#2563eb;--c-violet:#7c3aed;--c-pink:#db2777;--c-orange:#ea580c;--c-amber:#d97706;--c-green:#16a34a;--c-teal:#0d9488;--c-sky:#0284c7;--c-red:#dc2626;--c-slate:#475569}
+body.ci{--c-blue:#2563eb;--c-violet:#7c3aed;--c-pink:#db2777;--c-orange:#ea580c;--c-amber:#b45309;--c-green:#16a34a;--c-teal:#0d9488;--c-sky:#0284c7;--c-red:#dc2626;--c-slate:#475569}
 body.ci #tools button:not(.on)[data-t] svg{color:var(--ci)}
 body.ci #tools [data-t=hand]{--ci:var(--c-slate)}body.ci #tools [data-t=select]{--ci:var(--c-blue)}body.ci #tools [data-t=rotpage]{--ci:var(--c-violet)}
 body.ci #tools [data-t=edittext]{--ci:var(--c-orange)}body.ci #tools [data-t=text]{--ci:var(--c-amber)}body.ci #tools [data-t=image]{--ci:var(--c-pink)}body.ci #tools [data-t=sign],body.ci #tools [data-t=initial]{--ci:var(--c-violet)}
-body.ci #tools [data-t=pen]{--ci:var(--c-blue)}body.ci #tools [data-t=hl]{--ci:#ca8a04}body.ci #tools [data-t=wo]{--ci:var(--c-slate)}
+body.ci #tools [data-t=pen]{--ci:var(--c-blue)}body.ci #tools [data-t=hl]{--ci:#a16207}body.ci #tools [data-t=wo]{--ci:var(--c-slate)}
 body.ci #tools [data-t=check]{--ci:var(--c-green)}body.ci #tools [data-t=cross]{--ci:var(--c-red)}
 body.ci #tools [data-t=rect]{--ci:var(--c-sky)}body.ci #tools [data-t=ellipse]{--ci:var(--c-teal)}body.ci #tools [data-t=line]{--ci:var(--c-slate)}body.ci #tools [data-t=arrow]{--ci:var(--c-orange)}body.ci #tools [data-t=wmark]{--ci:var(--c-pink)}
 body.ci #tools button:not(.on)[data-t=hl] svg{filter:drop-shadow(0 0 0 #fde047)}
@@ -3753,7 +3753,7 @@ function attachPickers(){
 const _rt=renderTools;renderTools=function(){_rt();attachPickers()};
 
 /* ---------------- theme ---------------- */
-const THEMES=[['indigo','Indigo','#4f46e5'],['ocean','Ocean blue','#0284c7'],['teal','Teal (classic)','#0f766e'],['forest','Forest green','#15803d'],['rose','Rose','#be185d']];
+const THEMES=[['indigo','Indigo','#4f46e5'],['ocean','Ocean blue','#0369a1'],['teal','Teal (classic)','#0f766e'],['forest','Forest green','#15803d'],['rose','Rose','#be185d']];
 function applyTheme(t){if(!THEMES.some(x=>x[0]===t))t='indigo';document.body.dataset.theme=t;const mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=THEMES.find(x=>x[0]===t)[2];redrawAll()}
 function openTheme(){const cur=document.body.dataset.theme;
   openModal(`<h3>Theme</h3><div style="display:grid;gap:10px">${THEMES.map(([k,l,c])=>`<button class="btn" data-th="${k}" style="display:flex;align-items:center;gap:12px;height:54px;justify-content:flex-start;${k===cur?'box-shadow:0 0 0 2px '+c+';':''}"><span style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,${c},#0006)"></span><b style="flex:1;text-align:left">${l}</b>${k===cur?'✓':''}</button>`).join('')}</div><label class="row" style="gap:10px;margin:14px 2px 0;align-items:center"><input type="checkbox" id="thCi" ${document.body.classList.contains('ci')?'checked':''} style="width:20px;height:20px;accent-color:var(--acc)"><span><b>Colourful icons</b><br><span class="small">Turn off for the plain look</span></span></label><div class="btns"><button class="btn" data-x>Done</button></div>`);
