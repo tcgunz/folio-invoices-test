@@ -1,0 +1,31 @@
+{
+ "id": "./",
+ "name": "Folio Trial — Invoices",
+ "short_name": "Folio Trial",
+ "description": "Trial version of Folio with invoicing: PDFs, scanning, receipts and invoices.",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "background_color": "#e9ecef",
+ "theme_color": "#4f46e5",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any maskable"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any maskable"
+  }
+ ],
+ "categories": [
+  "productivity",
+  "business",
+  "utilities"
+ ],
+ "orientation": "any"
+}
