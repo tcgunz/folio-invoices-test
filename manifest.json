@@ -1,8 +1,8 @@
 {
  "id": "./",
- "name": "Folio Trial — Invoices",
- "short_name": "Folio Trial",
- "description": "Trial version of Folio with invoicing: PDFs, scanning, receipts and invoices.",
+ "name": "Redoic Trial — Invoices",
+ "short_name": "Redoic Trial",
+ "description": "Trial version of Redoic with invoicing: PDFs, scanning, receipts and invoices.",
  "start_url": "./",
  "scope": "./",
  "display": "standalone",

@@ -1,4 +1,4 @@
-# Folio
+# Redoic
 
 Scan, edit and sign documents, and keep your receipts organized.
 
